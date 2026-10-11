@@ -6,6 +6,10 @@ may break the spec or the Go API, and every such break is listed under
 
 ## Unreleased
 
+## v0.1.0 — 2026-10-11
+
+The first release.
+
 - Project scaffolding: module, lint and test gate, CI on Linux and macOS.
 - The spec format, version 1 (`spec` package): TOML decoding with `file:line:col`
   errors, validation, placeholders, a JSON Schema, and the `validate` and `schema`
@@ -31,7 +35,6 @@ may break the spec or the Go API, and every such break is listed under
   the panel.
 - `herdr` package: the socket client, `Open` for popups and overlays, `ClosePopup`,
   `Notify`.
-
 - A `tomlfile` store: top-level keys of a TOML file, edited line by line,
   typed by field, with comments and tables kept.
 - A choice with no `default` can be set back to "not set", removing its key.
@@ -40,8 +43,3 @@ may break the spec or the Go API, and every such break is listed under
   file) instead of writing an empty value; a `required` field cannot be cleared.
 - Text sections wrap long lines at words instead of cutting them.
 - A store path that starts with an empty `{env.X}` is an error, not `/…`.
-
-### Breaking
-
-- `paneltest.Config.Options` is replaced by `Views`, `Theme`, `Context` and `Via`; the
-  terminal size stays in `Width`/`Height`.
