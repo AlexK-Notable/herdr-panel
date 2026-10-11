@@ -157,3 +157,13 @@ def api(method, params, timeout=10):
         buf += chunk
     sock.close()
     return json.loads(buf)
+
+
+def stop_server():
+    """Stops the spike's herdr server, refusing unless herdr reports the
+    spike's own socket: a stray HERDR_* variable must never stop a live one."""
+    _, out, _ = cli("status")
+    socket_line = next((l for l in out.splitlines() if "socket:" in l), "")
+    if XDG + "/" not in socket_line:
+        raise SystemExit(f"refusing to stop: not the spike's server ({socket_line.strip()!r})")
+    return cli("server", "stop")

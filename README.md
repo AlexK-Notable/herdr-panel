@@ -3,40 +3,173 @@
 Spec-driven popup panels for [herdr](https://herdr.dev) plugins — and for
 any terminal.
 
-> **Status: design and spike only.** Nothing here is usable yet. The
-> `spike/` directory holds the experiment that established what a herdr
-> popup panel can rely on; the library itself has not been written.
+> **Status: design and spike.** The library is not written yet. This
+> repository holds the design summarised below and the spike in `spike/`
+> that established, on a real herdr, what a popup panel can rely on.
 
-## The idea
+## Why
 
-herdr plugins are written in many languages, and herdr gives them no way
-to add settings or controls to its own UI. herdr-panel is one small
-binary that draws a mouse- and keyboard-driven panel — settings fields,
-lists with row actions, buttons — from a **spec file**, inside a herdr
-popup. A plugin supplies the spec and a few commands that print JSON or
-perform actions; a panel that only edits a config file needs no plugin
-code at all. A Go library underneath is available for custom views.
+herdr's own surfaces are closed to plugins. Its right-click menus and its
+settings panel are hard-coded, the sidebar cannot be drawn into, and the
+manifest's `contexts` field is read by nothing. What a plugin *can* open
+is a popup: a session-modal terminal that runs one process and closes
+when that process exits.
+
+Every plugin that wants settings, a list of things to act on, or a
+confirm button therefore builds its own TUI inside that popup, in its own
+language — the plugins on one machine here are written in Python,
+TypeScript, Rust and Go. herdr-panel is meant to be written once instead:
+
+- **a host binary** that draws a panel from a **spec file** — settings
+  fields, lists with row actions, buttons — with the mouse and the
+  keyboard;
+- **a Go library** underneath, for panels that need a custom view.
+
+A plugin supplies a spec and, where it needs them, a few commands that
+print JSON or perform an action. A panel that only edits a config file
+needs no plugin code at all, in any language.
 
 herdr-panel is an unofficial community project. It is not affiliated
 with, or endorsed by, the herdr project.
 
-## What the spike found
+## What a panel will look like
 
-On herdr `0.9.2-preview.2026-09-29`, in an isolated session:
+A spec for the settings of a naming plugin, plus a list of workspaces
+with an action on each row:
 
-- a popup receives SGR mouse reports relative to its own content, and
-  keys in legacy xterm encoding;
-- herdr calls made while a popup is open (renames, plugin actions,
-  notifications) succeed; only a second popup is refused with `ui_busy`;
-- a popup's size and placement must be requested over the socket
-  (`plugin.pane.open`) — the CLI cannot ask for a popup;
-- the smallest popup content area is 4×2;
-- Lip Gloss v2's compositor hit-tests nested, overlapping layers, so one
-  layer tree can both draw a panel and answer clicks.
+```toml
+spec = 1
+title = "Auto Title"
+size = { width = "70%", height = "60%" }
 
-`spike/harness.py` drives a herdr client in a pseudo-terminal against an
-isolated config (`XDG_CONFIG_HOME=spike/xdg`, every `HERDR_*` variable
-removed), so it never touches a live session.
+[stores.config]
+kind  = "envfile"
+path  = "~/.config/herdr-auto-title/config.env"
+apply = { run = ["herdr", "plugin", "action", "invoke", "restart", "--plugin", "herdr.auto-title"] }
+
+[[section]]
+title = "Naming"
+fields = [
+  { store = "config", key = "HERDR_AUTO_TITLE_AGENTS", type = "bool", label = "Name agents" },
+  { store = "config", key = "HERDR_AUTO_TITLE_NAMER", type = "choice", label = "Model via",
+    choices = [ { value = "cli", label = "claude -p" }, { value = "api", label = "Anthropic API" } ] },
+  { store = "config", key = "HERDR_AUTO_TITLE_WORKSPACE_INTERVAL_S", type = "duration_s", min = 30,
+    label = "Workspace re-ask" },
+]
+
+[[section]]
+title   = "Workspaces"
+kind    = "list"
+source  = ["./herdr-auto-title", "panel", "workspaces"]   # prints JSON rows
+columns = ["label", "locked"]
+row_actions = [
+  { label = "Rename now", run = ["./herdr-auto-title", "workspace", "rename-now"] },
+]
+```
+
+The plugin's manifest then declares the popup and an action that opens
+it, and the user binds a key:
+
+```toml
+# herdr-plugin.toml
+[[panes]]
+id = "settings"
+title = "Auto Title"
+placement = "popup"
+command = ["./bin/herdr-panel", "panel.toml"]
+```
+
+The spec format is a sketch. It freezes at version 1 only once it serves
+two real plugins — one of ours and one written by someone else — without
+special cases.
+
+## How it will work
+
+| Layer | What it does |
+|---|---|
+| `core` | Layout, focus, keymap, theme roles, the error screen. Built on [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) and [Lip Gloss v2](https://github.com/charmbracelet/lipgloss); clicks are hit-tested by Lip Gloss's compositor, so the same layer tree draws the panel and answers the mouse. |
+| `widgets` | Toggle, choice, number and duration with bounds, validated text, secret status, list with row actions, button, text and log view, in-panel confirm dialog, status line. |
+| `spec` | The versioned schema, its validator, a JSON Schema export for editors and agents, and placeholders such as `{row.id}` and `{ctx.workspace_id}`. |
+| `stores` | Where values live: env files (comments and order kept), JSON (key order kept), TOML (existing keys only). Never herdr's own `config.toml`. |
+| `runner` | Runs source and action commands: no shell, a timeout, an output cap, stderr shown, values passed as `PANEL_FIELD_*` and `PANEL_ROW_*` environment variables as well as arguments. |
+| `herdr` | The herdr adapter: reads the popup's context, opens panels over the socket, turns `ui_busy` into a notification, subscribes to events for live lists. The panel itself runs in any terminal without it. |
+| `observe` | Renders a panel headlessly and prints the frame plus every clickable element, taken from the same layer tree that drew it, so an agent or a test can drive a panel by element id without a real mouse. |
+
+### Rules the host enforces
+
+- **Writes are safe.** Atomic, through a temporary file, after resolving
+  symlinks; file modes kept; and a file that changed on disk since the
+  panel loaded it is never overwritten.
+- **Commands are honest.** No shell, a timeout on everything, stderr and
+  exit status shown, and exit status 0 is not success when the command
+  reports `{"ok": false}`.
+- **Failures are visible.** A bad spec or a crash shows an error screen,
+  never a popup that silently vanishes.
+- **Secrets stay hidden.** Shown only as set or unset, with a test button.
+- **It fits the user's terminal.** Colours are ANSI palette roles, never
+  hard-coded RGB; meaning never rests on colour alone; text is cut by
+  display width; and every clickable thing has a key.
+- **It never steals focus.** The host does not raise windows or move
+  focus, and action commands must not either.
+
+## What herdr gives a panel
+
+Measured by the spike on herdr `0.9.2-preview.2026-09-29`:
+
+| | |
+|---|---|
+| Mouse | SGR reports — press, release, wheel, right button — relative to the popup's content. |
+| Keys | Legacy xterm encoding: Escape is a bare `ESC`, so a lone Escape is told apart by timing. |
+| herdr calls while open | Renames, plugin actions and notifications work. Only a second popup is refused, with `ui_busy`. |
+| Opening | Size and placement go through the socket method `plugin.pane.open`; the installed CLI cannot ask for a popup. |
+| Size | A 60×14 popup gives 57×12 inside its border; the smallest content area is 4×2. |
+| Context | Plugin popups get `HERDR_PLUGIN_CONTEXT_JSON` (workspace, tab, focused pane) and their plugin's config and state directories. A popup opened by a `type = "popup"` keybinding gets neither — only `HERDR_ACTIVE_*` ids. |
+| Theme | No colour-query reply and no `COLORFGBG` — hence ANSI roles. |
+
+## The spike
+
+`spike/` drives a real herdr client inside a pseudo-terminal, against a
+**fully isolated** herdr: `XDG_CONFIG_HOME=spike/xdg` and every `HERDR_*`
+variable removed, so it has its own server, socket, config and plugin
+registry and never touches a session you are working in. A probe plugin
+(`spike/probe`) logs everything its popup process receives.
+
+Requirements: herdr 0.9.2 or newer, Python 3 with
+[pyte](https://github.com/selectel/pyte), and Go for the hit-testing
+check in `spike/go`.
+
+```sh
+cd spike
+python3 s1_start.py     # start the isolated herdr and link the probe plugin
+python3 s2_main.py      # mouse, keys, sizes, openers, calls made while a popup is open
+python3 s6_modal.py     # popups under herdr's own modals, and Escape
+(cd go && go run .)     # Lip Gloss v2 compositor hit-testing
+```
+
+The probe's log lands in `spike/out/probe.jsonl`. Stop the isolated
+server afterwards with `python3 -c 'import harness; print(harness.stop_server())'`
+from `spike/`; it refuses unless herdr reports the spike's own socket.
+
+## Roadmap
+
+1. `core`, `widgets` and the env-file store, with `observe` from the first commit.
+2. The `runner` and list sections; the herdr adapter and its opener.
+3. The first real panel: settings and workspaces for [herdr-auto-title](https://github.com/AlexK-Notable/herdr-auto-title).
+4. A second panel for a plugin written by someone else; then spec version 1.
+5. Tagged releases. A plugin pins a version and builds it in its own
+   `[[build]]` step: `GOBIN=$PWD/bin go install github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel@vX.Y.Z`.
+
+## Prior art and credits
+
+A search of GitHub, npm, crates.io, PyPI and herdr's own issues and
+discussions in October 2026 found no panel or UI library for herdr
+plugins — only API clients and single-purpose popups. These showed the
+way:
+
+- [herdr-launcher](https://github.com/arjenblokzijl/herdr-launcher) — declarative TOML forms in a popup; the idea of passing field values as environment variables.
+- [herdr-command-center](https://github.com/speardragon/herdr-command-center) — one popup for many commands, and careful handling of `ui_busy`.
+- [herdr-client](https://github.com/vika2603/herdr-client) — a Go client generated from `herdr api schema`.
+- [herdr-organizations](https://github.com/frizynn/herdr-organizations), a fork of [herdr-projects](https://github.com/eliasstravik/herdr-projects) — a tabbed popup with in-panel settings and confirmations.
 
 ## License
 
