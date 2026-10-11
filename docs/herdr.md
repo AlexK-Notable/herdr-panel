@@ -62,6 +62,15 @@ link`, and without a shell. So:
 - **A linked plugin** (development) builds its own binary, e.g. from its
   Makefile; `[[build]]` does not run for it.
 
+`[[build]]` runs with the environment of the `herdr plugin install` command,
+so Go settings (`GOPRIVATE`, `GOPROXY`, `GOFLAGS`) come from there. Both
+forms above are checked from the `v0.1.0` tag by `TestInstallBuildsFromTag`
+(`HERDR_PANEL_BUILD_TAG=v0.1.0 make integration`): it installs the scratch
+plugins in `integration/testdata/plugins/` from GitHub into an isolated
+herdr, and each must report `herdr-panel v0.1.0` and open its panel. In a
+Go plugin, `go mod init` writes the local toolchain's version; set the
+`go` line no higher than the version your users have.
+
 ## Popups: what herdr does
 
 - **One at a time.** Opening a popup while one is open fails with

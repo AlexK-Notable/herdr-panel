@@ -707,3 +707,20 @@ Each entry says what changed from the plan above, and why.
     to exit (L13).
   - **The integration run then found that text sections cut long lines**, dropping the
     override names at the popup's width. Text sections now wrap at words.
+- **M8, the release.** `v0.1.0` is an annotated tag on `1bada53` (CI green). Before tagging,
+  `go install …@<sha>` and a scratch Go module with `go get -tool …@<sha>` both built a binary
+  whose `version` named the module version, which proved the dependency path of
+  `spec.HostVersion`. `TestInstallBuildsFromTag` then installed both `[[build]]` forms from
+  GitHub into an isolated herdr: each reported `herdr-panel v0.1.0` and opened its panel. What
+  the run found:
+  - **`herdr plugin install` requires `min_herdr_version`**; `plugin link`, which every earlier
+    test used, does not. The scratch manifests declare it, and `docs/herdr.md` says so.
+  - **The isolated world hides the user's gh login and `go env -w` settings**, because both live
+    under `XDG_CONFIG_HOME`. The install gets `GH_CONFIG_DIR` (git's credential helper for the
+    private repository), and `GOPRIVATE` must come from the environment.
+  - **`go mod init` writes the local toolchain's version** (`go 1.27.1` here); the scratch module
+    is set to the `go 1.26.0` floor.
+  - The plan's "opens by keybinding" is checked as `plugin pane open`: the build is what is
+    under test, and a binding adds only herdr's own key dispatch.
+  - Still open, and the user's to decide: the repository going public (after a full-history
+    gitleaks scan), and then the same check without `GOPRIVATE`, and the fork's `go.mod` pin.
