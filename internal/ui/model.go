@@ -193,6 +193,15 @@ func (m *Model) Status() string { return m.status.text }
 // Size is the terminal size the panel last drew at.
 func (m *Model) Size() (int, int) { return m.width, m.height }
 
+// CrashLog is where the crash was written, or "" when the panel has not
+// crashed or the log could not be written.
+func (m *Model) CrashLog() string {
+	if m.crash == nil {
+		return ""
+	}
+	return m.crash.log
+}
+
 // Crashed reports whether the panel caught a panic and shows its crash
 // screen.
 func (m *Model) Crashed() bool { return m.crash != nil }

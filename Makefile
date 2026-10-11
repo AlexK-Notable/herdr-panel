@@ -60,7 +60,7 @@ bench: ## Startup benchmark
 
 .PHONY: integration
 integration: ## The herdr integration suite, against an isolated herdr
-	@cd integration && go test -count=1 -tags integration ./...
+	@cd integration && go test -count=1 ./...
 
 .PHONY: build
 build: ## Build the binary

@@ -589,3 +589,24 @@ Each entry says what changed from the plan above, and why.
   only the direct child turned the test red. The helper is started with `os.StartProcess`,
   so `os/exec` stays confined to `internal/run`.
 - **M3, `observe.KeyMsg` could not press `+`**: the key name split on `+`. Fixed and covered.
+- **M4 needed no new code.** M3 had built the runner, apply, lists and row actions. M4's
+  negative controls were proven by mutation: no output cap, no one-poll guard, no stale
+  check, reselect by position, and a timeout ×1000 each turned their test red. M3 had
+  already done the same for the group kill, `WaitDelay` and `ok:false`.
+- **M5, a popup has no pane id.** The integration test found what the schema hides:
+  herdr 0.9.2 answers `plugin.pane.open` for a **popup** with a bare `{"type":"ok"}`
+  (`panes.rs` `open_plugin_popup_pane`). A popup is not in `pane list` and cannot be read or
+  closed by id. So `herdr.Opened` is empty for a popup, and `Client.ClosePopup` (socket
+  `popup.close`, found in `api.rs`) is the only outside close. The integration suite checks
+  `pane read` against the screen on an **overlay** of the same panel, which does have an
+  id. The popup is closed with `popup.close`, which sends the real signal cadence.
+- **M5, `pane read` and the screen agree only once a frame settles.** A single snapshot
+  failed 5 of 6 runs (the overlay is resized as it opens and repaints). The test polls until
+  they agree, for up to 5 s: 6 of 6 passed. A positive control (one word changed on the
+  screen copy) made it fail.
+- **M5, the isolated herdr skips onboarding** with `onboarding = false` in its own
+  `config.toml`; the welcome dialog is modal and covered the popup.
+- **M5, `x/vt` has no releases**, so the integration module pins today's pseudo-version
+  (`v0.0.0-20261011004359-2acd7e345453`). It is a test-only dependency in its own module.
+- **M5, a crash inside herdr also sends a notification** naming the crash log
+  (`TestCrashNotifiesHerdr`, against a fake socket).

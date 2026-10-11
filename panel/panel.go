@@ -200,6 +200,7 @@ func run(ctx context.Context, uopts ui.Options, opts Options) error {
 	restore()
 	switch {
 	case errors.Is(err, tea.ErrProgramPanic):
+		notifyCrash(ctx, crashLog)
 		hold(in, out, "herdr-panel crashed; details are in "+crashLog)
 		return ErrCrashed
 	case errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil:
@@ -210,9 +211,28 @@ func run(ctx context.Context, uopts ui.Options, opts Options) error {
 		sig, _ := got.Load().(os.Signal)
 		return &SignalError{Signal: sig}
 	case m.ExitCode != 0:
+		notifyCrash(ctx, m.CrashLog())
 		return ErrCrashed
 	}
 	return nil
+}
+
+// notifyCrash tells the user through herdr, when the panel runs inside it,
+// that it crashed and where the log is: the popup and its crash screen are
+// gone once the user closes them. It is sent even when ctx has ended, since
+// a crash while closing is still worth knowing about.
+func notifyCrash(ctx context.Context, logPath string) {
+	c, err := herdr.FromContext(herdr.FromEnv(os.Getenv))
+	if err != nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 500*time.Millisecond)
+	defer cancel()
+	body := "No crash log could be written."
+	if logPath != "" {
+		body = "Details: " + logPath
+	}
+	_, _ = c.Notify(ctx, herdr.Notice{Title: "herdr-panel crashed", Body: body})
 }
 
 func crashDir(d string) string {

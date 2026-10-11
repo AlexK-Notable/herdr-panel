@@ -175,6 +175,8 @@ discussions in October 2026 found no panel or UI library for herdr
 plugins — only API clients and single-purpose popups. These showed the
 way:
 
+- [herdr-auto-title](https://github.com/AlexK-Notable/herdr-auto-title) (MIT, © 2026 Alexander Satretdinov) — the socket transport in `herdr/client.go` and its test server are adapted from its `internal/herdr` package.
+
 - [herdr-launcher](https://github.com/arjenblokzijl/herdr-launcher) — declarative TOML forms in a popup; the idea of passing field values as environment variables.
 - [herdr-command-center](https://github.com/speardragon/herdr-command-center) — one popup for many commands, and careful handling of `ui_busy`.
 - [herdr-client](https://github.com/vika2603/herdr-client) — a Go client generated from `herdr api schema`.
@@ -216,6 +218,8 @@ Every module the library or its tests compile against has a row here;
 | `github.com/joho/godotenv` | MIT | tests: an oracle the env-file store must read files like; it never writes |
 | `github.com/santhosh-tekuri/jsonschema/v6` | Apache-2.0 | tests: validates the examples against the published JSON Schema |
 | `golang.org/x/text` | BSD-3-Clause | tests: required by jsonschema |
+| `github.com/charmbracelet/x/vt` | MIT | integration tests only (`integration/`, its own module): the screen of the herdr client |
+| `github.com/creack/pty` | MIT | integration tests only: runs the herdr client in a pseudo-terminal |
 | [herdr](https://github.com/herdrdev/herdr) | Apache-2.0 | not included: herdr-panel talks to a running herdr through its CLI and socket API |
 | [pyte](https://github.com/selectel/pyte) | LGPL-3.0 | spike tooling only (`spike/harness.py` imports an installed copy); not included |
 
