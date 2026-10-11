@@ -529,3 +529,8 @@ Each entry says what changed from the plan above, and why.
   negative control of five bad shapes it must reject.
 - **M1, spec additions** forced by the examples: `confirm` is a template (so it can say
   `Delete {row.title}?`), plus the action `after` key and `create` on stores.
+- **M2, unterminated quotes.** The fuzzer found a file the store could corrupt: after an
+  unclosed `A="`, an appended line is read back as part of A's value. No rewrite can make
+  such a file safe, so `Save` refuses it with `ErrUnterminated` and the line number. `Load`
+  still reads it, ignoring the broken line, as godotenv does. The failing input is kept as
+  a fuzz seed.

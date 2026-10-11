@@ -194,6 +194,7 @@ Every module the library or its tests compile against has a row here;
 | Module | License | Where |
 |---|---|---|
 | `github.com/pelletier/go-toml/v2` | MIT | library: spec decoding with positions |
+| `github.com/joho/godotenv` | MIT | tests: an oracle the env-file store must read files like; it never writes |
 | `github.com/santhosh-tekuri/jsonschema/v6` | Apache-2.0 | tests: validates the examples against the published JSON Schema |
 | `golang.org/x/text` | BSD-3-Clause | tests: required by jsonschema |
 | [herdr](https://github.com/herdrdev/herdr) | Apache-2.0 | not included: herdr-panel talks to a running herdr through its CLI and socket API |

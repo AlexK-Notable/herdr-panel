@@ -10,3 +10,6 @@ may break the spec or the Go API, and every such break is listed under
 - The spec format, version 1 (`spec` package): TOML decoding with `file:line:col`
   errors, validation, placeholders, a JSON Schema, and the `validate` and `schema`
   commands. Reference: `docs/spec.md`.
+- Safe writes (`internal/atomicfile`) and the env-file store: only edited lines change,
+  symlinks stay links, modes are kept, concurrent edits are detected, and orphaned
+  temporary files are swept.
