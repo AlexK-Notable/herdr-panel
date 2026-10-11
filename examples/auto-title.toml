@@ -20,6 +20,13 @@ fields = [
   { key = "HERDR_AUTO_TITLE_PANES", type = "bool", label = "Name panes too", default = true },
   { key = "HERDR_AUTO_TITLE_PREFER_AGENT", type = "bool", label = "Prefer the agent pane", default = false },
   { key = "HERDR_AUTO_TITLE_PANE_ID", type = "bool", label = "Show pane ids", default = false },
+  { key = "HERDR_AUTO_TITLE_AGENT_NAME", type = "bool", label = "Agent name first", default = false,
+    help = "Put the agent's name in front of what an agent pane is doing." },
+  { key = "HERDR_AUTO_TITLE_TRANSCRIPT", type = "bool", label = "Read transcripts", default = true,
+    help = "Read an agent's session transcript when it has not titled its terminal." },
+  { key = "HERDR_AUTO_TITLE_WORKSPACES", type = "bool", label = "Topic token", default = true,
+    help = "Report each workspace's activity as a $topic token for the sidebar." },
+  { key = "HERDR_AUTO_TITLE_DEBUG", type = "bool", label = "Debug logging", default = false },
 ]
 
 [[section]]
@@ -39,7 +46,7 @@ fields = [
 title = "Workspaces"
 kind = "list"
 source = { run = ["./herdr-auto-title", "panel", "workspaces"], every_s = 5 }
-columns = [ { key = "label", title = "Workspace" }, { key = "locked", title = "Locked", width = 8 } ]
+columns = [ { key = "label", title = "Workspace" }, { key = "named_by", title = "Named by", width = 12 } ]
 empty = "No workspaces yet."
 row_actions = [
   { label = "Rename now", key = "r", run = ["./herdr-auto-title", "workspace", "rename-now", "{row.id}"] },

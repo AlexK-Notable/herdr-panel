@@ -50,7 +50,7 @@ func TestAutoTitleExampleShape(t *testing.T) {
 	if list.Kind != ListSection || list.Every != 5*time.Second || len(list.RowActions) != 2 {
 		t.Errorf("list section = %+v", list)
 	}
-	if list.Columns[1].Width != 8 || list.Columns[0].Title != "Workspace" {
+	if list.Columns[1].Key != "named_by" || list.Columns[1].Width != 12 || list.Columns[0].Title != "Workspace" {
 		t.Errorf("columns = %+v", list.Columns)
 	}
 	for _, f := range s.Fields() {
