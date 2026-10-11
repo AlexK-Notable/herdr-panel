@@ -7,4 +7,4 @@ kind = "tomlfile"
 path = "{env.HERDR_PLUGIN_CONFIG_DIR}/config.toml"
 
 [[section]]
-fields = [ { key = "on", type = "bool", label = "Built from the tag", default = false } ]
+fields = [ { key = "on", type = "bool", label = "Tag build", default = false } ]

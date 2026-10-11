@@ -56,7 +56,7 @@ func TestInstallBuildsFromTag(t *testing.T) {
 			}
 			w.cli("plugin", "pane", "open", "--plugin", p.id, "--entrypoint", "settings", "--focus")
 			w.waitText("Build check (" + p.dir + ")")
-			w.waitText("Built from the tag")
+			w.waitText("Tag build")
 		})
 	}
 }
