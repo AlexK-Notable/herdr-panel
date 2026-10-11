@@ -1,0 +1,90 @@
+{"children":{"plain_pid":2810943,"setsid_pid":2810944},"env":{"HERDR_BIN_PATH":"/home/user/.local/bin/herdr","HERDR_ENV":"1","HERDR_PLUGIN_CONFIG_DIR":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/config/spike.slice","HERDR_PLUGIN_CONTEXT_JSON":"\u003c252 bytes\u003e","HERDR_PLUGIN_ENTRYPOINT_ID":"slice","HERDR_PLUGIN_ID":"spike.slice","HERDR_PLUGIN_ROOT":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/github/spike.slice-a5f2dc6264fa/spike/slice","HERDR_PLUGIN_STATE_DIR":"/home/user/repos/herdr-panel/spike/xdg-state/herdr/plugins/spike.slice","HERDR_SOCKET_PATH":"/home/user/repos/herdr-panel/spike/xdg/herdr/herdr.sock","SLICE_VIA":"nosize","TERM":"xterm-256color","TERMINAL":"alacritty","TERMINFO":"/home/user/.local/share/terminfo","TERM_PROGRAM":"herdr","TERM_PROGRAM_VERSION":"0.9.2-preview.2026-09-29-8e78f929d8f0"},"kind":"start","ms":0,"pgid":2810934,"pid":2810934,"sid":2810934,"t":1791698030.898,"via":"nosize"}
+{"kind":"first_view","ms":0,"pid":2810934,"t":1791698030.899,"via":"nosize"}
+{"kind":"msg","ms":0,"pid":2810934,"t":1791698030.899,"type":"tea.ColorProfileMsg","via":"nosize"}
+{"h":14,"kind":"size","ms":0,"pid":2810934,"t":1791698030.899,"via":"nosize","w":57}
+{"kind":"msg","ms":0,"pid":2810934,"t":1791698030.899,"type":"tea.EnvMsg","via":"nosize"}
+{"kind":"msg","ms":17,"pid":2810934,"t":1791698030.916,"type":"tea.ModeReportMsg","via":"nosize"}
+{"kind":"msg","ms":18,"pid":2810934,"t":1791698030.916,"type":"tea.ModeReportMsg","via":"nosize"}
+{"disambiguation":true,"event_types":false,"flags":1,"kind":"keyboard_enhancements","ms":18,"pid":2810934,"t":1791698030.916,"via":"nosize"}
+{"code":113,"kind":"key","mod":0,"ms":100,"pid":2810934,"repeat":false,"str":"q","t":1791698030.999,"text":"q","via":"nosize"}
+{"kind":"msg","ms":100,"pid":2810934,"t":1791698030.999,"type":"tea.QuitMsg","via":"nosize"}
+{"err":"\u003cnil\u003e","kind":"end","ms":101,"panic":false,"pid":2810934,"t":1791698030.999,"via":"nosize"}
+{"children":{"plain_pid":2813056,"setsid_pid":2813057},"env":{"HERDR_BIN_PATH":"/home/user/.local/bin/herdr","HERDR_ENV":"1","HERDR_PLUGIN_CONFIG_DIR":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/config/spike.slice","HERDR_PLUGIN_CONTEXT_JSON":"\u003c252 bytes\u003e","HERDR_PLUGIN_ENTRYPOINT_ID":"slice","HERDR_PLUGIN_ID":"spike.slice","HERDR_PLUGIN_ROOT":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/github/spike.slice-a5f2dc6264fa/spike/slice","HERDR_PLUGIN_STATE_DIR":"/home/user/repos/herdr-panel/spike/xdg-state/herdr/plugins/spike.slice","HERDR_SOCKET_PATH":"/home/user/repos/herdr-panel/spike/xdg/herdr/herdr.sock","SLICE_VIA":"sized","TERM":"xterm-256color","TERMINAL":"alacritty","TERMINFO":"/home/user/.local/share/terminfo","TERM_PROGRAM":"herdr","TERM_PROGRAM_VERSION":"0.9.2-preview.2026-09-29-8e78f929d8f0"},"kind":"start","ms":0,"pgid":2813043,"pid":2813043,"sid":2813043,"t":1791698032.202,"via":"sized"}
+{"kind":"first_view","ms":0,"pid":2813043,"t":1791698032.203,"via":"sized"}
+{"kind":"msg","ms":1,"pid":2813043,"t":1791698032.203,"type":"tea.ColorProfileMsg","via":"sized"}
+{"h":18,"kind":"size","ms":1,"pid":2813043,"t":1791698032.203,"via":"sized","w":67}
+{"kind":"msg","ms":1,"pid":2813043,"t":1791698032.203,"type":"tea.EnvMsg","via":"sized"}
+{"kind":"msg","ms":18,"pid":2813043,"t":1791698032.22,"type":"tea.ModeReportMsg","via":"sized"}
+{"kind":"msg","ms":18,"pid":2813043,"t":1791698032.22,"type":"tea.ModeReportMsg","via":"sized"}
+{"disambiguation":true,"event_types":false,"flags":1,"kind":"keyboard_enhancements","ms":18,"pid":2813043,"t":1791698032.22,"via":"sized"}
+{"code":113,"kind":"key","mod":0,"ms":100,"pid":2813043,"repeat":false,"str":"q","t":1791698032.303,"text":"q","via":"sized"}
+{"kind":"msg","ms":100,"pid":2813043,"t":1791698032.303,"type":"tea.QuitMsg","via":"sized"}
+{"err":"\u003cnil\u003e","kind":"end","ms":102,"panic":false,"pid":2813043,"t":1791698032.304,"via":"sized"}
+{"children":{"plain_pid":2814813,"setsid_pid":2814814},"env":{"HERDR_BIN_PATH":"/home/user/.local/bin/herdr","HERDR_ENV":"1","HERDR_PLUGIN_CONFIG_DIR":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/config/spike.slice","HERDR_PLUGIN_CONTEXT_JSON":"\u003c252 bytes\u003e","HERDR_PLUGIN_ENTRYPOINT_ID":"slice","HERDR_PLUGIN_ID":"spike.slice","HERDR_PLUGIN_ROOT":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/github/spike.slice-a5f2dc6264fa/spike/slice","HERDR_PLUGIN_STATE_DIR":"/home/user/repos/herdr-panel/spike/xdg-state/herdr/plugins/spike.slice","HERDR_SOCKET_PATH":"/home/user/repos/herdr-panel/spike/xdg/herdr/herdr.sock","SLICE_VIA":"cli","TERM":"xterm-256color","TERMINAL":"alacritty","TERMINFO":"/home/user/.local/share/terminfo","TERM_PROGRAM":"herdr","TERM_PROGRAM_VERSION":"0.9.2-preview.2026-09-29-8e78f929d8f0"},"kind":"start","ms":0,"pgid":2814800,"pid":2814800,"sid":2814800,"t":1791698033.507,"via":"cli"}
+{"kind":"first_view","ms":0,"pid":2814800,"t":1791698033.507,"via":"cli"}
+{"kind":"msg","ms":0,"pid":2814800,"t":1791698033.508,"type":"tea.ColorProfileMsg","via":"cli"}
+{"h":14,"kind":"size","ms":0,"pid":2814800,"t":1791698033.508,"via":"cli","w":57}
+{"kind":"msg","ms":0,"pid":2814800,"t":1791698033.508,"type":"tea.EnvMsg","via":"cli"}
+{"kind":"msg","ms":17,"pid":2814800,"t":1791698033.525,"type":"tea.ModeReportMsg","via":"cli"}
+{"kind":"msg","ms":18,"pid":2814800,"t":1791698033.525,"type":"tea.ModeReportMsg","via":"cli"}
+{"disambiguation":true,"event_types":false,"flags":1,"kind":"keyboard_enhancements","ms":18,"pid":2814800,"t":1791698033.525,"via":"cli"}
+{"code":113,"kind":"key","mod":0,"ms":101,"pid":2814800,"repeat":false,"str":"q","t":1791698033.608,"text":"q","via":"cli"}
+{"kind":"msg","ms":101,"pid":2814800,"t":1791698033.608,"type":"tea.QuitMsg","via":"cli"}
+{"err":"\u003cnil\u003e","kind":"end","ms":102,"panic":false,"pid":2814800,"t":1791698033.609,"via":"cli"}
+{"children":{"plain_pid":2816799,"setsid_pid":2816800},"env":{"HERDR_BIN_PATH":"/home/user/.local/bin/herdr","HERDR_ENV":"1","HERDR_PLUGIN_CONFIG_DIR":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/config/spike.slice","HERDR_PLUGIN_CONTEXT_JSON":"\u003c252 bytes\u003e","HERDR_PLUGIN_ENTRYPOINT_ID":"slice","HERDR_PLUGIN_ID":"spike.slice","HERDR_PLUGIN_ROOT":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/github/spike.slice-a5f2dc6264fa/spike/slice","HERDR_PLUGIN_STATE_DIR":"/home/user/repos/herdr-panel/spike/xdg-state/herdr/plugins/spike.slice","HERDR_SOCKET_PATH":"/home/user/repos/herdr-panel/spike/xdg/herdr/herdr.sock","SLICE_VIA":"keys","TERM":"xterm-256color","TERMINAL":"alacritty","TERMINFO":"/home/user/.local/share/terminfo","TERM_PROGRAM":"herdr","TERM_PROGRAM_VERSION":"0.9.2-preview.2026-09-29-8e78f929d8f0"},"kind":"start","ms":0,"pgid":2816791,"pid":2816791,"sid":2816791,"t":1791698034.812,"via":"keys"}
+{"kind":"first_view","ms":0,"pid":2816791,"t":1791698034.812,"via":"keys"}
+{"kind":"msg","ms":0,"pid":2816791,"t":1791698034.812,"type":"tea.ColorProfileMsg","via":"keys"}
+{"h":14,"kind":"size","ms":0,"pid":2816791,"t":1791698034.812,"via":"keys","w":57}
+{"kind":"msg","ms":0,"pid":2816791,"t":1791698034.812,"type":"tea.EnvMsg","via":"keys"}
+{"kind":"msg","ms":17,"pid":2816791,"t":1791698034.829,"type":"tea.ModeReportMsg","via":"keys"}
+{"kind":"msg","ms":18,"pid":2816791,"t":1791698034.829,"type":"tea.ModeReportMsg","via":"keys"}
+{"disambiguation":true,"event_types":false,"flags":1,"kind":"keyboard_enhancements","ms":18,"pid":2816791,"t":1791698034.83,"via":"keys"}
+{"code":116,"kind":"key","mod":0,"ms":600,"pid":2816791,"repeat":false,"str":"t","t":1791698035.412,"text":"t","via":"keys"}
+{"code":27,"kind":"key","mod":0,"ms":1360,"pid":2816791,"repeat":false,"str":"esc","t":1791698036.172,"text":"","via":"keys"}
+{"code":120,"kind":"key","mod":2,"ms":1800,"pid":2816791,"repeat":false,"str":"alt+x","t":1791698036.612,"text":"","via":"keys"}
+{"code":97,"kind":"key","mod":4,"ms":2400,"pid":2816791,"repeat":false,"str":"ctrl+a","t":1791698037.212,"text":"","via":"keys"}
+{"code":1114113,"kind":"key","mod":0,"ms":3001,"pid":2816791,"repeat":false,"str":"up","t":1791698037.812,"text":"","via":"keys"}
+{"code":9,"kind":"key","mod":1,"ms":3601,"pid":2816791,"repeat":false,"str":"shift+tab","t":1791698038.412,"text":"","via":"keys"}
+{"code":9,"kind":"key","mod":0,"ms":4201,"pid":2816791,"repeat":false,"str":"tab","t":1791698039.012,"text":"","via":"keys"}
+{"code":13,"kind":"key","mod":0,"ms":4803,"pid":2816791,"repeat":false,"str":"enter","t":1791698039.615,"text":"","via":"keys"}
+{"kind":"msg","ms":5401,"pid":2816791,"t":1791698040.213,"type":"tea.PasteStartMsg","via":"keys"}
+{"content":"pasted text","kind":"paste","len":11,"ms":5402,"pid":2816791,"t":1791698040.214,"via":"keys"}
+{"kind":"msg","ms":5402,"pid":2816791,"t":1791698040.214,"type":"tea.PasteEndMsg","via":"keys"}
+{"button":1,"kind":"mouse_click","ms":6003,"pid":2816791,"t":1791698040.814,"via":"keys","x":7,"y":2}
+{"id":"toggle","kind":"hit","ms":6003,"pid":2816791,"t":1791698040.814,"via":"keys","x":7,"y":2}
+{"kind":"mouse_release","ms":6052,"pid":2816791,"t":1791698040.864,"via":"keys","x":7,"y":2}
+{"kind":"signal","ms":6355,"pid":2816791,"sig":"hangup","t":1791698041.167,"via":"keys"}
+{"kind":"msg","ms":6355,"pid":2816791,"t":1791698041.167,"type":"tea.QuitMsg","via":"keys"}
+{"err":"\u003cnil\u003e","kind":"end","ms":6355,"panic":false,"pid":2816791,"t":1791698041.167,"via":"keys"}
+{"children":{"plain_pid":2830709,"setsid_pid":2830711},"env":{"HERDR_BIN_PATH":"/home/user/.local/bin/herdr","HERDR_ENV":"1","HERDR_PLUGIN_CONFIG_DIR":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/config/spike.slice","HERDR_PLUGIN_CONTEXT_JSON":"\u003c252 bytes\u003e","HERDR_PLUGIN_ENTRYPOINT_ID":"slice","HERDR_PLUGIN_ID":"spike.slice","HERDR_PLUGIN_ROOT":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/github/spike.slice-a5f2dc6264fa/spike/slice","HERDR_PLUGIN_STATE_DIR":"/home/user/repos/herdr-panel/spike/xdg-state/herdr/plugins/spike.slice","HERDR_SOCKET_PATH":"/home/user/repos/herdr-panel/spike/xdg/herdr/herdr.sock","SLICE_VIA":"panic","TERM":"xterm-256color","TERMINAL":"alacritty","TERMINFO":"/home/user/.local/share/terminfo","TERM_PROGRAM":"herdr","TERM_PROGRAM_VERSION":"0.9.2-preview.2026-09-29-8e78f929d8f0"},"kind":"start","ms":0,"pgid":2830700,"pid":2830700,"sid":2830700,"t":1791698042.677,"via":"panic"}
+{"kind":"first_view","ms":1,"pid":2830700,"t":1791698042.677,"via":"panic"}
+{"kind":"msg","ms":1,"pid":2830700,"t":1791698042.677,"type":"tea.ColorProfileMsg","via":"panic"}
+{"h":14,"kind":"size","ms":1,"pid":2830700,"t":1791698042.677,"via":"panic","w":57}
+{"kind":"msg","ms":1,"pid":2830700,"t":1791698042.677,"type":"tea.EnvMsg","via":"panic"}
+{"kind":"msg","ms":18,"pid":2830700,"t":1791698042.694,"type":"tea.ModeReportMsg","via":"panic"}
+{"kind":"msg","ms":18,"pid":2830700,"t":1791698042.695,"type":"tea.ModeReportMsg","via":"panic"}
+{"disambiguation":true,"event_types":false,"flags":1,"kind":"keyboard_enhancements","ms":18,"pid":2830700,"t":1791698042.695,"via":"panic"}
+{"code":112,"kind":"key","mod":0,"ms":101,"pid":2830700,"repeat":false,"str":"p","t":1791698042.777,"text":"p","via":"panic"}
+{"err":"program was killed: program experienced a panic","kind":"end","ms":101,"panic":true,"pid":2830700,"t":1791698042.777,"via":"panic"}
+{"children":{"plain_pid":2833963,"setsid_pid":2833964},"env":{"HERDR_BIN_PATH":"/home/user/.local/bin/herdr","HERDR_ENV":"1","HERDR_PLUGIN_CONFIG_DIR":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/config/spike.slice","HERDR_PLUGIN_CONTEXT_JSON":"\u003c252 bytes\u003e","HERDR_PLUGIN_ENTRYPOINT_ID":"slice","HERDR_PLUGIN_ID":"spike.slice","HERDR_PLUGIN_ROOT":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/github/spike.slice-a5f2dc6264fa/spike/slice","HERDR_PLUGIN_STATE_DIR":"/home/user/repos/herdr-panel/spike/xdg-state/herdr/plugins/spike.slice","HERDR_SOCKET_PATH":"/home/user/repos/herdr-panel/spike/xdg/herdr/herdr.sock","SLICE_HOLD":"1","SLICE_VIA":"hold","TERM":"xterm-256color","TERMINAL":"alacritty","TERMINFO":"/home/user/.local/share/terminfo","TERM_PROGRAM":"herdr","TERM_PROGRAM_VERSION":"0.9.2-preview.2026-09-29-8e78f929d8f0"},"kind":"start","ms":0,"pgid":2833945,"pid":2833945,"sid":2833945,"t":1791698044.282,"via":"hold"}
+{"kind":"first_view","ms":1,"pid":2833945,"t":1791698044.283,"via":"hold"}
+{"kind":"msg","ms":1,"pid":2833945,"t":1791698044.283,"type":"tea.ColorProfileMsg","via":"hold"}
+{"h":14,"kind":"size","ms":1,"pid":2833945,"t":1791698044.283,"via":"hold","w":57}
+{"kind":"msg","ms":1,"pid":2833945,"t":1791698044.283,"type":"tea.EnvMsg","via":"hold"}
+{"kind":"msg","ms":18,"pid":2833945,"t":1791698044.3,"type":"tea.ModeReportMsg","via":"hold"}
+{"kind":"msg","ms":18,"pid":2833945,"t":1791698044.3,"type":"tea.ModeReportMsg","via":"hold"}
+{"disambiguation":true,"event_types":false,"flags":1,"kind":"keyboard_enhancements","ms":18,"pid":2833945,"t":1791698044.3,"via":"hold"}
+{"code":112,"kind":"key","mod":0,"ms":101,"pid":2833945,"repeat":false,"str":"p","t":1791698044.383,"text":"p","via":"hold"}
+{"err":"program was killed: program experienced a panic","kind":"end","ms":101,"panic":true,"pid":2833945,"t":1791698044.383,"via":"hold"}
+{"how":"key","kind":"hold_end","ms":1602,"pid":2833945,"t":1791698045.884,"via":"hold"}
+{"children":{"plain_pid":2838811,"setsid_pid":2838813},"env":{"HERDR_BIN_PATH":"/home/user/.local/bin/herdr","HERDR_ENV":"1","HERDR_PLUGIN_CONFIG_DIR":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/config/spike.slice","HERDR_PLUGIN_CONTEXT_JSON":"\u003c252 bytes\u003e","HERDR_PLUGIN_ENTRYPOINT_ID":"slice","HERDR_PLUGIN_ID":"spike.slice","HERDR_PLUGIN_ROOT":"/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/github/spike.slice-a5f2dc6264fa/spike/slice","HERDR_PLUGIN_STATE_DIR":"/home/user/repos/herdr-panel/spike/xdg-state/herdr/plugins/spike.slice","HERDR_SOCKET_PATH":"/home/user/repos/herdr-panel/spike/xdg/herdr/herdr.sock","SLICE_HOLD":"1","SLICE_VIA":"cmdpanic","TERM":"xterm-256color","TERMINAL":"alacritty","TERMINFO":"/home/user/.local/share/terminfo","TERM_PROGRAM":"herdr","TERM_PROGRAM_VERSION":"0.9.2-preview.2026-09-29-8e78f929d8f0"},"kind":"start","ms":0,"pgid":2838802,"pid":2838802,"sid":2838802,"t":1791698046.888,"via":"cmdpanic"}
+{"kind":"first_view","ms":0,"pid":2838802,"t":1791698046.888,"via":"cmdpanic"}
+{"kind":"msg","ms":0,"pid":2838802,"t":1791698046.888,"type":"tea.ColorProfileMsg","via":"cmdpanic"}
+{"h":14,"kind":"size","ms":0,"pid":2838802,"t":1791698046.888,"via":"cmdpanic","w":57}
+{"kind":"msg","ms":0,"pid":2838802,"t":1791698046.889,"type":"tea.EnvMsg","via":"cmdpanic"}
+{"kind":"msg","ms":17,"pid":2838802,"t":1791698046.906,"type":"tea.ModeReportMsg","via":"cmdpanic"}
+{"kind":"msg","ms":18,"pid":2838802,"t":1791698046.906,"type":"tea.ModeReportMsg","via":"cmdpanic"}
+{"disambiguation":true,"event_types":false,"flags":1,"kind":"keyboard_enhancements","ms":18,"pid":2838802,"t":1791698046.906,"via":"cmdpanic"}
+{"code":112,"kind":"key","mod":1,"ms":101,"pid":2838802,"repeat":false,"str":"P","t":1791698046.989,"text":"P","via":"cmdpanic"}
+{"err":"program was killed: program experienced a panic","kind":"end","ms":101,"panic":true,"pid":2838802,"t":1791698046.989,"via":"cmdpanic"}
+{"how":"key","kind":"hold_end","ms":1602,"pid":2838802,"t":1791698048.491,"via":"cmdpanic"}

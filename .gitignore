@@ -1,6 +1,9 @@
 # herdr's isolated runtime state for the spike: sockets, sessions, logs
+spike/xdg/*
+!spike/xdg/herdr/
 spike/xdg/herdr/*
 !spike/xdg/herdr/config.toml
+spike/out/*.marker
 __pycache__/
 spike/xdg-state/
 spike/xdg-data/

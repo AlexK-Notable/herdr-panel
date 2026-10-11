@@ -119,10 +119,11 @@ Measured by the spike on herdr `0.9.2-preview.2026-09-29`:
 | | |
 |---|---|
 | Mouse | SGR reports — press, release, wheel, right button — relative to the popup's content. |
-| Keys | Legacy xterm encoding: Escape is a bare `ESC`, so a lone Escape is told apart by timing. |
+| Keys | Whatever the program asks for: legacy xterm encoding by default, and the kitty keyboard protocol (disambiguation) when the program pushes it, as Bubble Tea v2 does. |
+| Closing | SIGHUP, then SIGTERM, then SIGKILL, 250 ms apart, to the popup's whole session. Only a `setsid` child outlives the popup. |
 | herdr calls while open | Renames, plugin actions and notifications work. Only a second popup is refused, with `ui_busy`. |
 | Opening | Size and placement go through the socket method `plugin.pane.open`; the installed CLI cannot ask for a popup. |
-| Size | A 60×14 popup gives 57×12 inside its border; the smallest content area is 4×2. |
+| Size | A 60×14 popup gives 57×12 inside its border; the smallest content area is 4×2. A size sent over the socket overrides the manifest's. |
 | Context | Plugin popups get `HERDR_PLUGIN_CONTEXT_JSON` (workspace, tab, focused pane) and their plugin's config and state directories. A popup opened by a `type = "popup"` keybinding gets neither — only `HERDR_ACTIVE_*` ids. |
 | Theme | No colour-query reply and no `COLORFGBG` — hence ANSI roles. |
 
@@ -157,7 +158,13 @@ from `spike/`; it refuses unless herdr reports the spike's own socket.
 3. The first real panel: settings and workspaces for [herdr-auto-title](https://github.com/AlexK-Notable/herdr-auto-title).
 4. A second panel for a plugin written by someone else; then spec version 1.
 5. Tagged releases. A plugin pins a version and builds it in its own
-   `[[build]]` step: `GOBIN=$PWD/bin go install github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel@vX.Y.Z`.
+   `[[build]]` step. herdr runs that step without a shell, so a Go plugin
+   pins herdr-panel with `go get -tool …/cmd/herdr-panel@vX.Y.Z` and builds it
+   with `["go", "build", "-o", "bin/herdr-panel", "github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel"]`;
+   a plugin in another language uses
+   `["sh", "-c", "GOBIN=\"$PWD/bin\" go install github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel@vX.Y.Z"]`
+   (`go install` refuses a relative `GOBIN`). The full plan is in
+   [`docs/PLAN.md`](./docs/PLAN.md).
 
 ## Prior art and credits
 

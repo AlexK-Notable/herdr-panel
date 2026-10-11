@@ -15,6 +15,9 @@ spike/              the experiment that established what a popup can rely on
   harness.py        drives an isolated herdr client in a pty, rendered with pyte
   probe/            a herdr plugin whose popup logs env, context, size, input
   s1_start.py …     scenario scripts, run one at a time
+  slice/            slice S: a Bubble Tea v2 panel installed with a real [[build]]
+  slice-bad/        its negative control, a build that always fails
+  s7_slice.py       runs slice S end to end against the isolated herdr
   go/               Lip Gloss v2 hit-testing check
   out/probe.jsonl   the probe's evidence
   xdg/herdr/        the isolated herdr config; everything else in it is ignored
@@ -85,8 +88,28 @@ Measured on herdr `0.9.2-preview.2026-09-29`; re-check after upgrades.
 - **`[[keys.command]] type = "popup"`** gives the process no plugin
   context: no `HERDR_PLUGIN_*`, so no config or state directory. Only
   `HERDR_ACTIVE_{PANE,TAB,WORKSPACE}_ID` and `HERDR_ACTIVE_PANE_CWD`.
-- **Keys arrive in legacy xterm encoding** (bare `ESC`, `ESC[A`, `ESC x`
-  for alt). A lone Escape is told apart by timing.
+- **Keys follow what the popup's program asks for.** A program that pushes
+  nothing gets legacy xterm encoding (bare `ESC`, `ESC[A`, `ESC x` for alt).
+  Bubble Tea v2 pushes the kitty keyboard protocol, and herdr answers its
+  query with flags 1 (disambiguation): Esc, alt, ctrl, shift+tab and
+  bracketed paste all decode correctly (slice S, `spike/s7_slice.py`).
+- **The socket's size beats the manifest's.** `plugin.pane.open` with
+  `width`/`height` overrides the `[[panes]]` size; without them, and from the
+  CLI, the manifest's size applies. A 60×16 popup has 57×14 inside.
+- **Closing a popup sends SIGHUP first**, then SIGTERM and SIGKILL 250 ms
+  apart, to every process in the popup's session. Bubble Tea does not catch
+  SIGHUP; handle it. Only a `Setsid` child survives — which also means every
+  `Setsid` child a test starts must be killed by the test.
+- **A panic closes the popup and the message with it.** Bubble Tea's own
+  recovery prints the stack to stderr and `Run` returns `ErrProgramPanic`;
+  the process exits and the popup vanishes. A hold screen after `Run`
+  returns keeps the failure readable.
+- **`herdr plugin install` takes only GitHub `owner/repo[/subdir]`** (with
+  `--ref`), clones over https, and runs `[[build]]` as an argv with no shell
+  in the manifest's directory. `plugin link` never builds. A private repo
+  needs git auth: with `XDG_CONFIG_HOME` isolated, gh cannot find its login,
+  so the spike passes `GH_CONFIG_DIR` for the install only. `go install`
+  refuses a relative `GOBIN`.
 - **The smallest popup content area is 4×2.** Layouts must degrade to a
   "make me bigger" line, not garbage.
 - **The socket takes one NDJSON request per connection.**

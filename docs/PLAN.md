@@ -55,9 +55,8 @@ spike `87qNNe7uxbtfJt3acThq3`, licensing `i0niRea8sDUBj_nhtSDHs`.
   - Bubble Tea catches only SIGINT and SIGTERM (`tea.go`), so without a handler a panel dies
     on the SIGHUP.
 - **Bubble Tea v2 pushes modifyOtherKeys and the kitty keyboard protocol**
-  (`cursed_renderer.go:163`). The spike saw legacy encoding with a raw probe, which pushes
-  neither. Whether herdr forwards kitty encoding into a popup is still **unknown**; slice S
-  finds out.
+  (`cursed_renderer.go:163`), and herdr **answers** with flags 1 (disambiguation). Slice S
+  measured it: Esc, alt, ctrl, shift+tab and bracketed paste all decode correctly.
 - The rest stays as measured by the spike:
   - one popup per session (a second one gets `ui_busy`);
   - only the socket can request popup placement and a size;
@@ -286,6 +285,30 @@ as a popup in the **isolated** herdr and logs:
 *Done when* the findings are in the spike znote and AGENTS.md's herdr traps are updated. If
 the key encoding or teardown differs from the assumptions above, M3's design changes before
 it starts.
+
+**S — results (2026-10-10, `spike/s7_slice.py`, isolated herdr).**
+
+| Question | Measured |
+|---|---|
+| Keys | herdr answers the kitty query with flags=1. Every test key decoded correctly, and so did paste. It took 159 ms from the harness's write of a lone Esc to Bubble Tea's decode; where that time goes is not measured. |
+| Size | The socket's size beats the manifest's: 70×20 gives 67×18, and the manifest's 60×16 gives 57×14. The CLI uses the manifest. |
+| First frame | The first `View` came 0 ms after process start and about 4 ms after the open call. |
+| Close (`popup.close`) | Only SIGHUP was needed: the handler quit at 0 ms and `Run` returned nil. The plain child died. The `Setsid` child survived, and so did one from every other popup run. |
+| Panic, Bubble Tea's own recovery | The popup vanished instantly, and the stack went with it. |
+| Panic, hold screen after `Run` | It stayed readable until a key, for panics in Update and in a Cmd alike. |
+| `[[build]]` | A failing build was refused ("Plugin was not installed"). The good build produced `bin/slice`. Install takes only GitHub `owner/repo[/subdir]`. A private repo needs gh's login, which isolation hid; the fix is `GH_CONFIG_DIR` for the install only. |
+| Relative `GOBIN` | Refused: `cannot install, GOBIN must be an absolute path`. |
+
+**Consequences for M3**:
+
+- Bubble Tea's recovery returns only `ErrProgramPanic`, with the stack on stderr, which
+  vanishes with the popup. So `internal/ui` recovers on its own in Update, View and every Cmd
+  it returns. It captures the value and the stack, writes them to the crash log, and shows
+  them on the hold screen.
+- Bubble Tea's catch stays as a backstop. When it fires, stderr is redirected to the crash
+  log so the stack survives.
+- The keymap may rely on disambiguated keys inside herdr, and still works with legacy
+  encoding elsewhere.
 
 **M0 — Scaffolding.**
 

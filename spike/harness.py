@@ -39,9 +39,14 @@ def isolated_env():
     return env
 
 
-def cli(*args, timeout=15):
-    """Runs the herdr CLI against the spike's server only."""
-    r = subprocess.run(["herdr", *args], env=isolated_env(), capture_output=True,
+def cli(*args, timeout=15, extra_env=None):
+    """Runs the herdr CLI against the spike's server only. extra_env adds
+    variables on top of the isolated environment (never HERDR_*)."""
+    env = isolated_env()
+    for k, v in (extra_env or {}).items():
+        assert not k.startswith("HERDR_"), k
+        env[k] = v
+    r = subprocess.run(["herdr", *args], env=env, capture_output=True,
                        text=True, timeout=timeout, stdin=subprocess.DEVNULL)
     return r.returncode, r.stdout.strip(), r.stderr.strip()
 
