@@ -1,0 +1,22 @@
+name: Bug
+description: Something herdr-panel does wrong
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: A spec that shows it
+      description: The smallest one you can make. `herdr-panel observe <spec> --sandbox` output helps too.
+      render: toml
+  - type: input
+    id: version
+    attributes:
+      label: Versions
+      description: "`herdr-panel version`, `herdr --version`, and your OS"
+    validations:
+      required: true

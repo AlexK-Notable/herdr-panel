@@ -372,3 +372,31 @@ func TestRequires(t *testing.T) {
 		t.Error("semver ordering is wrong")
 	}
 }
+
+// Every complete spec shown in the docs (a ```toml block that starts with
+// `spec = 1`) must parse, so the docs cannot drift from the format.
+func TestDocSpecsParse(t *testing.T) {
+	t.Parallel()
+	docs, _ := filepath.Glob("../docs/*.md")
+	docs = append(docs, "../README.md")
+	found := 0
+	for _, d := range docs {
+		data, err := os.ReadFile(d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, block := range strings.Split(string(data), "```toml\n")[1:] {
+			body, _, _ := strings.Cut(block, "```")
+			if !strings.HasPrefix(body, "spec = 1") {
+				continue
+			}
+			found++
+			if _, err := Parse([]byte(body), fmt.Sprintf("%s#%d", d, i+1), t.TempDir()); err != nil {
+				t.Errorf("%s, toml block %d: %v", d, i+1, err)
+			}
+		}
+	}
+	if found == 0 {
+		t.Fatal("no spec found in the docs; the test proves nothing")
+	}
+}

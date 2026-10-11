@@ -1,0 +1,10 @@
+name: Feature
+description: Something a panel cannot do yet
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What your plugin needs
+      description: The plugin, the setting or list, and why the spec cannot express it today.
+    validations:
+      required: true

@@ -3,9 +3,10 @@
 Spec-driven popup panels for [herdr](https://herdr.dev) plugins — and for
 any terminal.
 
-> **Status: under construction (v0).** The build follows
-> [`docs/PLAN.md`](./docs/PLAN.md); `spike/` holds the experiments that
-> established, on a real herdr, what a popup panel can rely on.
+> **Status: v0.1.** Two real panels run on it: settings and workspaces for
+> herdr-auto-title, and settings for herdr-file-viewer, a plugin written by
+> someone else. Until v1 a minor release may change the spec or the Go API;
+> every such change is listed in the [CHANGELOG](./CHANGELOG.md).
 
 ## Why
 
@@ -32,56 +33,76 @@ needs no plugin code at all, in any language.
 herdr-panel is an unofficial community project. It is not affiliated
 with, or endorsed by, the herdr project.
 
-## What a panel will look like
+## A panel
 
-A spec for the settings of a naming plugin, plus a list of workspaces
-with an action on each row:
+The settings of a plugin that keeps them in a TOML file, and a list of
+things with an action on each row:
 
 ```toml
 spec = 1
-title = "Auto Title"
-size = { width = "70%", height = "60%" }
+title = "My plugin"
+size = { width = "70%", height = "70%" }
 
 [stores.config]
-kind  = "envfile"
-path  = "~/.config/herdr-auto-title/config.env"
-apply = { run = ["herdr", "plugin", "action", "invoke", "restart", "--plugin", "herdr.auto-title"] }
+kind  = "tomlfile"                                   # or "envfile"
+path  = "{env.HERDR_PLUGIN_CONFIG_DIR}/config.toml"
+apply = ["./my-plugin", "reload"]                    # optional: run after a save
 
 [[section]]
-title = "Naming"
+title = "Startup"
 fields = [
-  { store = "config", key = "HERDR_AUTO_TITLE_AGENTS", type = "bool", label = "Name agents" },
-  { store = "config", key = "HERDR_AUTO_TITLE_NAMER", type = "choice", label = "Model via",
-    choices = [ { value = "cli", label = "claude -p" }, { value = "api", label = "Anthropic API" } ] },
-  { store = "config", key = "HERDR_AUTO_TITLE_WORKSPACE_INTERVAL_S", type = "duration_s", min = 30,
-    label = "Workspace re-ask" },
+  { key = "hide_dotfiles", type = "bool", label = "Hide dotfiles", default = false },
+  { key = "scroll_lines", type = "int", label = "Wheel step", min = 1, max = 10, default = 3 },
+  { key = "side", type = "choice", label = "Tree side", choices = ["left", "right"], default = "left" },
 ]
 
 [[section]]
-title   = "Workspaces"
-kind    = "list"
-source  = ["./herdr-auto-title", "panel", "workspaces"]   # prints JSON rows
-columns = ["label", "locked"]
+title = "Workspaces"
+kind = "list"
+source = { run = ["./my-plugin", "rows"], every_s = 5 }   # prints JSON rows
+columns = [ { key = "label", title = "Workspace" } ]
 row_actions = [
-  { label = "Rename now", run = ["./herdr-auto-title", "workspace", "rename-now"] },
+  { label = "Rename now", key = "r", run = ["./my-plugin", "rename", "{row.id}"] },
 ]
 ```
 
-The plugin's manifest then declares the popup and an action that opens
-it, and the user binds a key:
+The plugin's manifest declares the popup and an action that opens it:
 
 ```toml
 # herdr-plugin.toml
 [[panes]]
 id = "settings"
-title = "Auto Title"
+title = "Settings"
 placement = "popup"
+width = "70%"
+height = "70%"
 command = ["./bin/herdr-panel", "panel.toml"]
 ```
 
-The spec format is a sketch. It freezes at version 1 only once it serves
-two real plugins — one of ours and one written by someone else — without
-special cases.
+A setting is written on its own line, or where the file documents it as a
+commented default; nothing else in the file changes. Runnable examples are
+in [`examples/`](./examples), among them the two real panels.
+
+## Using it
+
+| Command | What it does |
+|---|---|
+| `herdr-panel <spec.toml>` | Runs the panel in the current terminal. |
+| `herdr-panel validate <spec>…` | Checks specs, with `file:line:col` errors; for CI. |
+| `herdr-panel observe <spec> [--sandbox] [--stub f] [--script f] [--json]` | Drives a panel headlessly and prints the frame and every clickable element. |
+| `herdr-panel schema` | Prints the JSON Schema of the spec, for editors and agents. |
+| `herdr-panel version` | Prints the version. |
+
+Exit status: 0 success, 1 runtime error, 2 usage, 3 invalid spec, 4 herdr
+unavailable or busy, 129/130/143 ended by SIGHUP/SIGINT/SIGTERM.
+
+| Read | For |
+|---|---|
+| [`docs/spec.md`](./docs/spec.md) | The spec, key by key. |
+| [`docs/herdr.md`](./docs/herdr.md) | Opening a panel from a plugin, building herdr-panel in one, and what herdr does to a popup. |
+| [`docs/testing.md`](./docs/testing.md) | `observe` and `paneltest`. |
+| [`docs/embedding.md`](./docs/embedding.md) | The Go API, and custom views. |
+| [`docs/security.md`](./docs/security.md) | The trust model: a spec runs commands, so a spec is code. |
 
 ## How it works
 
@@ -91,7 +112,7 @@ special cases.
 | `spec` | The versioned schema, its decoder and validator (errors carry `file:line:col`), placeholders such as `{row.id}` and `{ctx.workspace_id}`, and a JSON Schema for editors and agents. |
 | `herdr` | The herdr adapter: reads a popup's context, opens panels over the socket, sends notifications. The panel itself runs in any terminal without it. |
 | `paneltest` | Drives a panel in tests by element id and compares golden frames. |
-| `internal/…` | The UI core (layout, focus, keymap, theme roles, error screens) on [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) and [Lip Gloss v2](https://github.com/charmbracelet/lipgloss), whose compositor both draws the panel and answers the mouse; widgets; the env-file store and atomic writes; the command runner; `observe`. |
+| `internal/…` | The UI core (layout, focus, keymap, theme roles, error screens) on [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) and [Lip Gloss v2](https://github.com/charmbracelet/lipgloss), whose compositor both draws the panel and answers the mouse; widgets; the env-file and TOML stores and atomic writes; the command runner; `observe`. |
 
 `herdr-panel observe` renders a panel headlessly and prints the frame plus
 every clickable element, taken from the same layer tree that drew it, so an
@@ -153,20 +174,21 @@ The probe's log lands in `spike/out/probe.jsonl`. Stop the isolated
 server afterwards with `python3 -c 'import harness; print(harness.stop_server())'`
 from `spike/`; it refuses unless herdr reports the spike's own socket.
 
-## Roadmap
+## Building it into a plugin
 
-1. `core`, `widgets` and the env-file store, with `observe` from the first commit.
-2. The `runner` and list sections; the herdr adapter and its opener.
-3. The first real panel: settings and workspaces for [herdr-auto-title](https://github.com/AlexK-Notable/herdr-auto-title).
-4. A second panel for a plugin written by someone else; then spec version 1.
-5. Tagged releases. A plugin pins a version and builds it in its own
-   `[[build]]` step. herdr runs that step without a shell, so a Go plugin
-   pins herdr-panel with `go get -tool …/cmd/herdr-panel@vX.Y.Z` and builds it
-   with `["go", "build", "-o", "bin/herdr-panel", "github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel"]`;
-   a plugin in another language uses
-   `["sh", "-c", "GOBIN=\"$PWD/bin\" go install github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel@vX.Y.Z"]`
-   (`go install` refuses a relative `GOBIN`). The full plan is in
-   [`docs/PLAN.md`](./docs/PLAN.md).
+A plugin pins a version and builds herdr-panel in its own `[[build]]` step,
+which herdr runs on `herdr plugin install`, without a shell:
+
+- a Go plugin pins it as a tool, `go get -tool
+  github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel@v0.1.0`, and builds it
+  with `["go", "build", "-o", "bin/herdr-panel", "github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel"]`;
+- a plugin in another language uses `["sh", "-c", "GOBIN=\"$PWD/bin\" go
+  install github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel@v0.1.0"]` with
+  `platforms = ["linux", "macos"]` (`go install` refuses a relative `GOBIN`).
+
+A linked plugin (`herdr plugin link`) is never built by herdr; build
+`bin/herdr-panel` yourself. Details: [`docs/herdr.md`](./docs/herdr.md).
+Linux and macOS are supported.
 
 ## Prior art and credits
 
