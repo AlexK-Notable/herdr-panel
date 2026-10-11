@@ -1,0 +1,10 @@
+# A scratch plugin for TestInstallBuildsFromTag: the smallest panel.
+spec = 1
+title = "Build check (sh-build)"
+
+[stores.config]
+kind = "tomlfile"
+path = "{env.HERDR_PLUGIN_CONFIG_DIR}/config.toml"
+
+[[section]]
+fields = [ { key = "on", type = "bool", label = "Built from the tag", default = false } ]

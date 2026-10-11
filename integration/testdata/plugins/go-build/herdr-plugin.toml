@@ -1,0 +1,15 @@
+# A scratch plugin for TestInstallBuildsFromTag: a Go plugin that pins
+# herdr-panel as a tool (go.mod) and builds it on install.
+id = "herdr-panel-test.go-build"
+name = "herdr-panel build check (Go)"
+version = "0.0.0"
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["go", "build", "-o", "bin/herdr-panel", "github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel"]
+
+[[panes]]
+id = "settings"
+title = "Build check"
+placement = "popup"
+command = ["./bin/herdr-panel", "panel.toml"]

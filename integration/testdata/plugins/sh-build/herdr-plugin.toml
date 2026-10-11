@@ -1,0 +1,16 @@
+# A scratch plugin for TestInstallBuildsFromTag: a plugin in any language,
+# which installs herdr-panel at a tag on install.
+id = "herdr-panel-test.sh-build"
+name = "herdr-panel build check (sh)"
+version = "0.0.0"
+platforms = ["linux", "macos"]
+
+[[build]]
+platforms = ["linux", "macos"]
+command = ["sh", "-c", "GOBIN=\"$PWD/bin\" go install github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel@v0.1.0"]
+
+[[panes]]
+id = "settings"
+title = "Build check"
+placement = "popup"
+command = ["./bin/herdr-panel", "panel.toml"]
