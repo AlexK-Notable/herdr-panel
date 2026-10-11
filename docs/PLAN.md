@@ -645,3 +645,28 @@ Each entry says what changed from the plan above, and why.
   - **Found on the way: `os.Stderr` raced between two `Run`s** in one process (the new
     parallel `TestMissingViewIsShownThenRefused` exposed it under `-race`). One panel at a
     time owns the stderr redirect; another leaves stderr alone and says so on crash.
+- **M6, the auto-title fork** (`~/repos/herdr-auto-title.panel`, branch `feat/settings-panel`;
+  commits `0e7d3cf`, `f9efbbf`, `2113281`):
+  - **The panel asks the plugin which file to edit.** The plugin reads `config.env` from the
+    first of `$XDG_CONFIG_HOME`, `~/.config` and the platform directory that already holds it,
+    which a spec template cannot express (on macOS it may be Application Support). The popup
+    runs `herdr-auto-title settings`, which resolves the path with the plugin's own code,
+    exports `HERDR_AUTO_TITLE_CONFIG_FILE`, and execs `bin/herdr-panel panel.toml`; the
+    spec's store path is `{env.HERDR_AUTO_TITLE_CONFIG_FILE}`.
+  - **The action opens the popup over the socket** (`herdr-auto-title settings open`, using
+    the fork's own client and `plugin.pane.open`), so the manifest stays shell-free, as the
+    fork's other entries are. `ui_busy` becomes a notification.
+  - **Apply is the plugin's own `restart`**, not `herdr plugin action invoke`: no PATH lookup
+    of `herdr` from inside a popup. Its new instance is started with `Setsid`, so it outlives
+    the popup; `timeout_s = 30` covers the old instance's 15 s to leave.
+  - **No `go.mod` pin and no herdr-panel `[[build]]` yet.** herdr-panel is private and untagged,
+    so a committed `require`/`tool` line would point at a pseudo-version every other clone and
+    CI could not fetch. `make panel` builds `bin/herdr-panel` from a checkout
+    (`HERDR_PANEL_DIR`, default `../herdr-panel`), which a linked plugin needs anyway; no
+    `go.work` is needed either. The pin and `[[build]]` come with the `v0.1.0` tag (M8).
+  - **Verified in an isolated herdr** by `TestAutoTitleSettingsPanel` (opt-in, see
+    `docs/herdr.md`). Writing it found that redirecting XDG directories is not isolation for a
+    plugin that falls back to `~/.config`: the test also redirects `HOME` and digests the real
+    files before and after.
+  - **The fork is public; herdr-panel is private.** Its branch names herdr-panel (README link,
+    Makefile), so it is committed locally and not pushed until the user decides.

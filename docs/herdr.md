@@ -132,3 +132,12 @@ It runs a herdr client in a pseudo-terminal and reads its screen through
    against the screen until they agree (a frame can be caught mid-repaint).
 
 The suite skips when `herdr` is not on `PATH`.
+
+`TestAutoTitleSettingsPanel` checks a real consumer the same way, when
+`HERDR_PANEL_AUTOTITLE_DIR` names a herdr-auto-title checkout with `make
+panel` done. It links the plugin, opens the panel through the plugin's own
+action, saves a setting, waits for the apply (a plugin restart), reads the
+workspace list, and checks that the restarted plugin outlives the popup. It
+also redirects `HOME`: a plugin that falls back to `~/.config` would
+otherwise find, and edit, the real user's files. A digest of those files,
+taken before and after, proves they were not touched.
