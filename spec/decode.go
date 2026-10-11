@@ -293,9 +293,9 @@ func decodeSection(i int, t *table, c *collector) *Section {
 	if k, kp, ok := o.str("kind"); ok {
 		kind = SectionKind(k)
 		switch kind {
-		case FieldsSection, ListSection, ButtonsSection, TextSection:
+		case FieldsSection, ListSection, ButtonsSection, TextSection, ViewSection:
 		default:
-			c.add(kp, "section kind must be fields, list, buttons or text, not %q", k)
+			c.add(kp, "section kind must be fields, list, buttons, text or view, not %q", k)
 			o.known = append(o.known, t.keys...) // its other keys are not the problem
 			o.done()
 			return sec
@@ -336,6 +336,8 @@ func decodeSection(i int, t *table, c *collector) *Section {
 		} else {
 			c.add(t.pos, "%s has no buttons (a buttons section needs buttons = [...])", what)
 		}
+	case ViewSection:
+		sec.View, _ = o.required("view")
 	case TextSection:
 		if s, _, ok := o.str("text"); ok {
 			sec.Text = s

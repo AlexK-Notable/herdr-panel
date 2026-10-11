@@ -25,6 +25,7 @@ import (
 
 	"github.com/AlexK-Notable/herdr-panel/herdr"
 	"github.com/AlexK-Notable/herdr-panel/internal/atomicfile"
+	"github.com/AlexK-Notable/herdr-panel/internal/bridge"
 	"github.com/AlexK-Notable/herdr-panel/internal/ui"
 	"github.com/AlexK-Notable/herdr-panel/spec"
 )
@@ -41,6 +42,14 @@ type Options struct {
 	// CrashDir is where a crash log goes; "" uses herdr's state directory for
 	// the plugin, or herdr-panel's own.
 	CrashDir string
+	// Width and Height give the terminal size when Output is not a terminal
+	// that can report it, as in a test; zero asks the terminal.
+	Width, Height int
+	// Theme styles the panel; nil uses DefaultTheme.
+	Theme *Theme
+	// Views supply the spec's sections of kind "view", by name.
+	// Experimental, as View is.
+	Views map[string]View
 }
 
 // SignalError reports that a signal ended the panel. herdr closes a popup
@@ -71,18 +80,55 @@ func RunFile(ctx context.Context, path string, opts Options) error {
 }
 
 // Run runs a validated spec until the user closes it, a signal arrives, or
-// ctx ends.
+// ctx ends. A spec with a view section that opts.Views does not supply is
+// refused with an error wrapping ErrNoView.
 func Run(ctx context.Context, s *spec.Spec, opts Options) error {
+	uopts, err := uiOptions(s, opts)
+	if err != nil {
+		return err
+	}
+	sweepStores(s, uopts.Context)
+	return run(ctx, uopts, opts)
+}
+
+//nolint:gochecknoinits // sets the bridge before paneltest, which imports panel, can use it
+func init() {
+	bridge.UIOptions = func(s *spec.Spec, o any) (ui.Options, error) {
+		opts, ok := o.(Options)
+		if !ok {
+			return ui.Options{}, fmt.Errorf("bridge: %T is not panel.Options", o)
+		}
+		return uiOptions(s, opts)
+	}
+}
+
+// uiOptions builds the panel's internal options from the public ones.
+func uiOptions(s *spec.Spec, opts Options) (ui.Options, error) {
+	if err := CheckViews(s, opts.Views); err != nil {
+		return ui.Options{}, err
+	}
 	hctx := herdr.FromEnv(os.Getenv)
 	values := opts.Context
 	if values == nil {
 		values = hctx.Values()
 	}
-	if opts.CrashDir == "" {
-		opts.CrashDir = hctx.StateDir
+	crash := opts.CrashDir
+	if crash == "" {
+		crash = hctx.StateDir
 	}
-	sweepStores(s, values)
-	return run(ctx, ui.Options{Spec: s, Context: values, Via: opts.Via, CrashDir: opts.CrashDir}, opts)
+	theme := themeOf(opts)
+	ut := ui.Theme(theme)
+	return ui.Options{
+		Spec: s, Context: values, Via: opts.Via, CrashDir: crash,
+		Theme: &ut, Views: adaptViews(opts.Views, theme),
+	}, nil
+}
+
+func themeOf(opts Options) Theme {
+	if opts.Theme != nil {
+		return *opts.Theme
+	}
+	return DefaultTheme()
 }
 
 // sweepStores removes temporary files a killed panel left beside its
@@ -118,6 +164,10 @@ func run(ctx context.Context, uopts ui.Options, opts Options) error {
 	if uopts.CrashDir == "" {
 		uopts.CrashDir = opts.CrashDir
 	}
+	if uopts.Theme == nil {
+		ut := ui.Theme(themeOf(opts))
+		uopts.Theme = &ut
+	}
 	m := ui.New(uopts)
 
 	// Bubble Tea handles SIGINT and SIGTERM, not SIGHUP, which is how herdr
@@ -134,7 +184,11 @@ func run(ctx context.Context, uopts ui.Options, opts Options) error {
 	restore := redirectStderr(crashLog)
 	defer restore()
 
-	p := tea.NewProgram(m, tea.WithInput(in), tea.WithOutput(out), tea.WithContext(ctx), tea.WithoutSignalHandler())
+	popts := []tea.ProgramOption{tea.WithInput(in), tea.WithOutput(out), tea.WithContext(ctx), tea.WithoutSignalHandler()}
+	if opts.Width > 0 && opts.Height > 0 {
+		popts = append(popts, tea.WithWindowSize(opts.Width, opts.Height))
+	}
+	p := tea.NewProgram(m, popts...)
 	var got atomic.Value // os.Signal
 	go func() {
 		for s := range sigs {

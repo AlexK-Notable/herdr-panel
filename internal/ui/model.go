@@ -29,6 +29,8 @@ type Options struct {
 	NoTimers bool
 	// Stores overrides the store built for each spec store, by name.
 	Stores map[string]store.Store
+	// Views supply the sections of kind "view", by name.
+	Views map[string]View
 	// CrashDir is where a crash log is written; "" for the temp directory.
 	CrashDir string
 	Parent   context.Context //nolint:containedctx // the panel's lifetime; cancelled on quit
@@ -135,7 +137,7 @@ func New(opts Options) *Model {
 			if sec.Source != nil {
 				m.texts[i] = &textState{sec: sec, idx: i}
 			}
-		case spec.FieldsSection, spec.ButtonsSection:
+		case spec.FieldsSection, spec.ButtonsSection, spec.ViewSection:
 		}
 	}
 	if order := m.focusOrder(); len(order) > 0 {
@@ -190,6 +192,10 @@ func (m *Model) Status() string { return m.status.text }
 
 // Size is the terminal size the panel last drew at.
 func (m *Model) Size() (int, int) { return m.width, m.height }
+
+// Crashed reports whether the panel caught a panic and shows its crash
+// screen.
+func (m *Model) Crashed() bool { return m.crash != nil }
 
 // Focused returns the id of the focused element.
 func (m *Model) Focused() string { return m.focus }

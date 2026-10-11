@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,8 @@ func (m *Model) focusOrder() []string {
 			for j := range sec.Buttons {
 				ids = append(ids, actionID("button", i, j))
 			}
+		case spec.ViewSection:
+			ids = append(ids, viewPrefix+sec.View)
 		case spec.TextSection:
 		}
 	}
@@ -73,7 +76,9 @@ func (m *Model) Update(msg tea.Msg) (_ tea.Model, cmd tea.Cmd) {
 			cmd = nil
 		}
 	}()
-	return m, m.update(msg)
+	prev := m.focus
+	cmd = m.update(msg)
+	return m, tea.Batch(cmd, m.viewFocusChange(prev))
 }
 
 func (m *Model) update(msg tea.Msg) tea.Cmd {
@@ -86,6 +91,10 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case QuitRequest:
 		return m.Quit()
+	case viewClose:
+		return m.close()
+	case viewMsg:
+		return m.toView(msg.name, msg.msg)
 	case loadedMsg:
 		return m.onLoaded(msg)
 	case savedMsg:
@@ -103,8 +112,15 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	case tickMsg:
 		return m.onTick(msg)
 	case tea.PasteMsg:
+		if name, v := m.focusedView(); v != nil && m.dialog == nil && m.crash == nil {
+			return m.toView(name, msg)
+		}
 		return m.paste(msg.Content)
 	case tea.KeyPressMsg:
+		if name, v := m.focusedView(); v != nil && m.dialog == nil && m.crash == nil &&
+			!slices.Contains(panelKeys, msg.String()) {
+			return m.toView(name, msg)
+		}
 		return m.key(msg.String())
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseLeft {
@@ -514,6 +530,8 @@ func (m *Model) click(x, y int) tea.Cmd {
 	case "list":
 		m.focus = id
 		return nil
+	case "view":
+		return m.viewClick(rest, x, y)
 	case "field":
 		if m.editing != nil {
 			return nil // already editing this one

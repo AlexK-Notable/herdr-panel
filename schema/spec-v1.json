@@ -243,7 +243,8 @@
               "fields",
               "list",
               "buttons",
-              "text"
+              "text",
+              "view"
             ]
           },
           "row_actions": {
@@ -332,6 +333,10 @@
             "type": "string"
           },
           "title": {
+            "type": "string"
+          },
+          "view": {
+            "minLength": 1,
             "type": "string"
           }
         },

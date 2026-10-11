@@ -139,6 +139,9 @@ const (
 	ListSection    SectionKind = "list"
 	ButtonsSection SectionKind = "buttons"
 	TextSection    SectionKind = "text"
+	// ViewSection is drawn by Go code the panel's host supplies under the
+	// section's View name (see panel.Options.Views). Experimental.
+	ViewSection SectionKind = "view"
 )
 
 // Section is one titled part of the panel.
@@ -158,6 +161,8 @@ type Section struct {
 	Buttons []*Action // ButtonsSection
 
 	Text string // TextSection, when there is no source
+
+	View string // ViewSection: the name the host supplies a View under
 
 	Pos Pos
 }

@@ -321,6 +321,8 @@ func (m *Model) bodyLines(w int) []line {
 			out = append(out, wrapSegs(segs, w)...)
 		case spec.TextSection:
 			out = append(out, m.textLines(i, sec, w)...)
+		case spec.ViewSection:
+			out = append(out, m.viewLines(sec, w)...)
 		}
 	}
 	return out

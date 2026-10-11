@@ -50,7 +50,8 @@ Every section has an optional `title` and a `kind`:
 - `fields`, the default: settings fields;
 - `list`: rows printed by a command, with actions on each row;
 - `buttons`: actions;
-- `text`: fixed text, or the output of a command.
+- `text`: fixed text, or the output of a command;
+- `view`: drawn by Go code (experimental; see below).
 
 ### `fields`
 
@@ -124,6 +125,21 @@ buttons = [ { label = "Restart", key = "R", run = ["./my-plugin", "restart"], co
 
 `text = "..."` shows fixed text. A `source` command instead shows the
 command's output, which `every_s` can refresh.
+
+### `view` (experimental)
+
+```toml
+[[section]]
+title = "Usage"
+kind  = "view"
+view  = "usage-graph"
+```
+
+A section drawn and driven by Go code. A program that embeds herdr-panel
+supplies it with `panel.Options.Views["usage-graph"]` (see
+[embedding.md](./embedding.md)). `herdr-panel validate` accepts the spec, but
+the `herdr-panel` binary has no views to supply, so `herdr-panel run` and
+`observe` refuse it with exit status 1. A view name is used once per spec.
 
 ## Actions
 

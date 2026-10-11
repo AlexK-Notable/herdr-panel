@@ -159,6 +159,10 @@ func observeCmd(args []string, stdout, stderr io.Writer) int {
 		}
 		return exitRuntime
 	}
+	if err := panel.CheckViews(s, nil); err != nil {
+		fmt.Fprintln(stderr, "herdr-panel:", err)
+		return exitRuntime
+	}
 	opts := ui.Options{Spec: s, Context: herdr.FromEnv(os.Getenv).Values(), Via: "observe"}
 	var sb *observe.Sandbox
 	if *sandbox || *stubFile != "" {

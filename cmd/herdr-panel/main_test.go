@@ -63,3 +63,31 @@ func TestValidateExitCodes(t *testing.T) {
 		}
 	}
 }
+
+// A view section is valid, but only a Go program can supply the view: the
+// binary refuses to run it with exit status 1, not 3.
+func TestViewSpecNeedsAProgram(t *testing.T) {
+	t.Parallel()
+	p := filepath.Join(t.TempDir(), "view.toml")
+	src := "spec = 1\ntitle = \"T\"\n[[section]]\nkind = \"view\"\nview = \"graph\"\n"
+	if err := os.WriteFile(p, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		args []string
+		code int
+	}{
+		{[]string{"validate", p}, exitOK},
+		{[]string{"observe", p}, exitRuntime},
+		{[]string{p}, exitRuntime},
+	} {
+		var stdout, stderr bytes.Buffer
+		got := run(c.args, &stdout, &stderr)
+		if got != c.code {
+			t.Errorf("%q = %d, want %d\n%s", c.args, got, c.code, stderr.String())
+		}
+		if c.code == exitRuntime && !strings.Contains(stderr.String(), "view graph") {
+			t.Errorf("%q stderr = %q", c.args, stderr.String())
+		}
+	}
+}

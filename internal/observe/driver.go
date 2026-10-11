@@ -59,10 +59,18 @@ func (d *Driver) run(cmd tea.Cmd) {
 			d.errors = append(d.errors, "stopped: the panel kept producing work")
 			return
 		}
-		switch msg := c().(type) {
+		msg := c()
+		if cmds, ordered, ok := ui.Unpack(msg); ok {
+			if ordered {
+				// A sequence runs before anything queued after it.
+				queue = append(slices.Clone(cmds), queue...)
+			} else {
+				queue = append(queue, cmds...)
+			}
+			continue
+		}
+		switch msg.(type) {
 		case nil:
-		case tea.BatchMsg:
-			queue = append(queue, msg...)
 		case tea.QuitMsg:
 			d.Quit = true
 		default:
@@ -133,17 +141,18 @@ var named = map[string]rune{
 	"enter": tea.KeyEnter, "tab": tea.KeyTab, "esc": tea.KeyEscape, "backspace": tea.KeyBackspace,
 	"delete": tea.KeyDelete, "up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft, "right": tea.KeyRight,
 	"home": tea.KeyHome, "end": tea.KeyEnd, "pgup": tea.KeyPgUp, "pgdown": tea.KeyPgDown, "space": tea.KeySpace,
+	"insert": tea.KeyInsert,
 }
 
 // KeyMsg builds the key press Bubble Tea would deliver for a key name.
 func KeyMsg(name string) (tea.KeyPressMsg, error) {
 	var k tea.KeyPressMsg
 	parts := strings.Split(name, "+")
-	base := parts[len(parts)-1]
-	if base == "" && strings.HasSuffix(name, "+") { // "ctrl++"
-		base = "+"
+	base, mods := parts[len(parts)-1], parts[:len(parts)-1]
+	if base == "" && strings.HasSuffix(name, "+") { // "+" or "ctrl++"
+		base, mods = "+", parts[:max(0, len(parts)-2)]
 	}
-	for _, p := range parts[:len(parts)-1] {
+	for _, p := range mods {
 		switch p {
 		case "ctrl":
 			k.Mod |= tea.ModCtrl

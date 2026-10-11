@@ -59,7 +59,7 @@ func JSONSchema() []byte {
 	}, "key")})
 	section := closed(map[string]any{
 		"title":       str,
-		"kind":        jsObj("enum", []any{"fields", "list", "buttons", "text"}),
+		"kind":        jsObj("enum", []any{"fields", "list", "buttons", "text", "view"}),
 		"fields":      jsObj("type", "array", "items", field),
 		"source":      source,
 		"every_s":     jsObj("type", "integer", "minimum", 1, "maximum", 86400),
@@ -69,6 +69,7 @@ func JSONSchema() []byte {
 		"row_actions": jsObj("type", "array", "items", action),
 		"buttons":     jsObj("type", "array", "items", action),
 		"text":        str,
+		"view":        nonEmpty,
 	})
 	store := closed(map[string]any{
 		"kind":   jsObj("enum", []any{"envfile"}),

@@ -107,6 +107,9 @@ func TestErrorPositions(t *testing.T) {
 		{"extend an inline table", "spec = 1\ntitle = \"T\"\nsize = { width = 10 }\n[size]\n", `4:2: is defined twice`},
 		{"array table after a static array", "spec = 1\ntitle = \"T\"\nsection = []\n[[section]]\n", `4:3: [[section]] conflicts with a value defined earlier`},
 		{"table after an array table", "spec = 1\ntitle = \"T\"\n[[section]]\n[section]\n", `4:2: is defined twice`},
+		{"view without a name", head + "[[section]]\nkind = \"view\"\n", "6:3: needs view"},
+		{"view shown twice", head + "[[section]]\nkind = \"view\"\nview = \"g\"\n[[section]]\nkind = \"view\"\nview = \"g\"\n", `9:3: view "g" is shown twice`},
+		{"bad view name", head + "[[section]]\nkind = \"view\"\nview = \"a b\"\n", `6:3: view name "a b" must be`},
 		{"table inside a mixed array", "spec = 1\ntitle = \"T\"\na = [1, {b = 1}]\n[a.c]\n", `4:2: "a" is already`},
 	}
 	for _, c := range cases {

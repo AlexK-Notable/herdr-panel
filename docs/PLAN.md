@@ -563,3 +563,29 @@ Each entry says what changed from the plan above, and why.
     larger code, so 3 won). `docs/security.md` is written: the trust model, argument
     injection and `--`, and the shell caveat.
   - `FuzzParse` also checks that the JSON Schema accepts everything `Parse` accepts.
+- **M3, `panel.View` is line-based, not a Lip Gloss layer.** The plan sketched
+  `Layer(Theme, Size) *lipgloss.Layer`. The renderer draws the body as one scrolling column
+  of lines, so a free layer would neither scroll nor clip with its section. A view instead
+  returns `RenderOutput{Lines, Regions, Cursor}` from `Render(RenderInput)`. Structs in and
+  out, so fields can be added without breaking anyone. Regions become elements
+  `view:<name>:<region>` and are hit-tested like everything else. A view's commands are
+  wrapped: a panic shows the crash screen, results return only to that view, `tea.Batch`
+  and `tea.Sequence` are unpacked (Bubble Tea's sequence message is unexported, so it is
+  recognised by its shape), and `tea.Quit` becomes a close that asks about unsaved edits.
+  Mutation checks turned each of the three red. The spec gained `kind = "view"` with
+  `view = "<name>"`; the CLI validates such a spec but refuses to run it (exit 1).
+- **M3, `paneltest` reaches the panel's internals through `internal/bridge`**: `panel` sets
+  a function there in `init`, so `paneltest` builds a panel exactly as `Run` does without
+  `panel` exporting internals or the view adapter being written twice. `panel.Options`
+  gained `Width`/`Height` (for a test or a non-terminal output) and `Theme`; `panel.Theme`
+  has the internal theme's fields, so it converts directly.
+- **M3, the startup budget** is measured through a real Bubble Tea program writing to a
+  buffer, from `RunFile` to the first full frame: a median of about 20 ms over 7 runs of
+  the auto-title example (`TestFirstFrameBudget`, `BenchmarkFirstFrame`). Under the race
+  detector the time is logged, not checked.
+- **M3, the close cadence** is tested in a subprocess (`TestCloseCadence`): a command whose
+  SIGHUP-ignoring grandchild is reachable only by the process-group kill. SIGHUP and SIGTERM
+  each end the panel in about 2 ms with exit 129 or 143, and the grandchild dies. Killing
+  only the direct child turned the test red. The helper is started with `os.StartProcess`,
+  so `os/exec` stays confined to `internal/run`.
+- **M3, `observe.KeyMsg` could not press `+`**: the key name split on `+`. Fixed and covered.

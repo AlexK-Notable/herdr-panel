@@ -332,7 +332,7 @@ func TestLoadErrorScreen(t *testing.T) {
 
 func TestKeyNamesRoundTrip(t *testing.T) {
 	t.Parallel()
-	for _, k := range []string{"a", "A", "?", "/", "enter", "esc", "space", "tab", "shift+tab", "ctrl+s", "ctrl+r", "alt+x", "pgup", "f5", "delete", "backspace", "up"} {
+	for _, k := range []string{"a", "A", "?", "/", "enter", "esc", "space", "tab", "shift+tab", "ctrl+s", "ctrl+r", "alt+x", "pgup", "f5", "delete", "backspace", "up", "+", "ctrl++", "insert"} {
 		if _, err := observe.KeyMsg(k); err != nil {
 			t.Errorf("%s: %v", k, err)
 		}

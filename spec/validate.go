@@ -144,9 +144,9 @@ func checkShapes(s *Spec, c *collector) {
 	}
 	for _, sec := range s.Sections {
 		switch sec.Kind {
-		case FieldsSection, ListSection, ButtonsSection, TextSection:
+		case FieldsSection, ListSection, ButtonsSection, TextSection, ViewSection:
 		default:
-			c.add(sec.Pos, "section kind must be fields, list, buttons or text, not %q", sec.Kind)
+			c.add(sec.Pos, "section kind must be fields, list, buttons, text or view, not %q", sec.Kind)
 		}
 		if sec.Every < 0 || sec.Every > 24*time.Hour {
 			c.add(sec.Pos, "a refresh interval must be 1 s to 24 h")
@@ -156,6 +156,8 @@ func checkShapes(s *Spec, c *collector) {
 			c.add(sec.Pos, "a list section needs a source command")
 		case sec.Kind == TextSection && sec.Source == nil && sec.Text == "":
 			c.add(sec.Pos, "a text section needs text or a source command")
+		case sec.Kind == ViewSection && strings.TrimSpace(sec.View) == "":
+			c.add(sec.Pos, "a view section needs a view name")
 		case sec.Kind == TextSection && sec.Source != nil && sec.Text != "":
 			c.add(sec.Pos, "a text section has both text and a source; use one")
 		}
@@ -276,6 +278,21 @@ func validate(s *Spec, c *collector) {
 		cmdRefs(f.Test, fmt.Sprintf("field %q test", f.ID), NSEnv, NSCtx, NSField)
 	}
 
+	views := map[string]Pos{}
+	for _, sec := range s.Sections {
+		if sec.Kind != ViewSection || sec.View == "" { // decode reports a missing name
+			continue
+		}
+		switch p, dup := views[sec.View]; {
+		case !validName(sec.View, false):
+			c.add(sec.Pos, "view name %q must be letters, digits, _ and -", sec.View)
+		case dup:
+			c.add(sec.Pos, "view %q is shown twice (also at line %d)", sec.View, p.Line)
+		default:
+			views[sec.View] = sec.Pos
+		}
+	}
+
 	keys := map[string]Pos{}
 	checkKey := func(a *Action) {
 		if a.Key == "" {
@@ -312,7 +329,7 @@ func validate(s *Spec, c *collector) {
 			}
 		case TextSection:
 			cmdRefs(sec.Source, "text source", NSEnv, NSCtx, NSField)
-		case FieldsSection:
+		case FieldsSection, ViewSection:
 		}
 	}
 }
