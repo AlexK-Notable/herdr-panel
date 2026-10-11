@@ -1,10 +1,12 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -60,7 +62,11 @@ func (f *TOMLFile) Load(ctx context.Context) (Snapshot, error) {
 	return Snapshot{Values: vals, Revision: rev}, nil
 }
 
+// bom is the UTF-8 byte order mark some editors put at the start of a file.
+const bom = "\ufeff"
+
 func tomlValues(data []byte) (map[string]string, error) {
+	data = bytes.TrimPrefix(data, []byte(bom))
 	var m map[string]any
 	if err := toml.Unmarshal(data, &m); err != nil {
 		return nil, fmt.Errorf("not valid TOML: %w", err)
@@ -106,7 +112,7 @@ func (f *TOMLFile) Save(ctx context.Context, base Snapshot, changes map[string]C
 			return Snapshot{}, fmt.Errorf("%s: key %q is not a bare TOML key", f.Path, key)
 		}
 		if c.Unset {
-			doc.unset(key)
+			err = doc.unset(key)
 		} else {
 			var lit string
 			if lit, err = tomlLiteral(c.Value, f.Kinds[key]); err == nil {
@@ -186,10 +192,17 @@ type tomlDoc struct {
 	crlf       bool // CRLF line ends
 	eol        bool // the file ended with a line end
 	origLast   string
-	firstTable int // index of the first table header line, or len(lines)
-	topEnd     int // the first header, real or commented out, or len(lines)
-	keys       map[string]lineSpan
+	firstTable int                      // index of the first table header line, or len(lines)
+	topEnd     int                      // the first header, real or commented out, or len(lines)
+	keys       map[string]lineSpan      // top-level keys with a single-part name
+	kinds      map[string]unstable.Kind // the kind of each one's value
+	spans      []lineSpan               // every key-value above the first table, dotted ones too
+	bom        bool
 }
+
+// ErrNotScalar means a key to change holds a table, an array or a date: a
+// field cannot show it, so it is left for the user to edit by hand.
+var ErrNotScalar = errors.New("its value is a table, an array or a date; edit it by hand")
 
 type lineSpan struct{ first, last int } // line indexes, inclusive
 
@@ -200,8 +213,12 @@ var headerLine = regexp.MustCompile(`^\s*#?\s*\[`)
 func parseTOMLDoc(data []byte) (*tomlDoc, error) {
 	// Lines keep their own "\r": a file can mix line ends, and a multi-line
 	// string's value depends on which it holds.
-	text := string(data)
-	d := &tomlDoc{crlf: strings.Contains(text, "\r\n"), keys: map[string]lineSpan{}}
+	text, hadBOM := strings.CutPrefix(string(data), bom) // kept, and written back
+	data = []byte(text)
+	d := &tomlDoc{
+		crlf: strings.Contains(text, "\r\n"), bom: hadBOM,
+		keys: map[string]lineSpan{}, kinds: map[string]unstable.Kind{},
+	}
 	d.eol = len(text) == 0 || strings.HasSuffix(text, "\n")
 	if text = strings.TrimSuffix(text, "\n"); text != "" || len(data) > 1 {
 		d.lines = strings.Split(text, "\n")
@@ -223,12 +240,14 @@ func parseTOMLDoc(data []byte) (*tomlDoc, error) {
 			if first >= d.firstTable {
 				continue
 			}
+			d.spans = append(d.spans, lineSpan{first, last})
 			var parts []string
 			for key := e.Key(); key.Next(); {
 				parts = append(parts, string(key.Node().Data))
 			}
 			if len(parts) == 1 {
 				d.keys[parts[0]] = lineSpan{first, last}
+				d.kinds[parts[0]] = e.Value().Kind
 			}
 		default: // comments are not kept by this parser
 		}
@@ -238,7 +257,7 @@ func parseTOMLDoc(data []byte) (*tomlDoc, error) {
 	}
 	d.topEnd = d.firstTable
 	for i := range d.firstTable {
-		if headerLine.MatchString(d.lines[i]) {
+		if !d.inValue(i) && headerLine.MatchString(d.lines[i]) {
 			d.topEnd = i
 			break
 		}
@@ -276,6 +295,9 @@ func nodeLines(p *unstable.Parser, n *unstable.Node) (first, last int, ok bool) 
 func (d *tomlDoc) set(key, lit string) error {
 	line := key + " = " + lit
 	if s, ok := d.keys[key]; ok {
+		if !scalar(d.kinds[key]) {
+			return ErrNotScalar
+		}
 		if s.first != s.last {
 			return ErrMultiline
 		}
@@ -283,12 +305,16 @@ func (d *tomlDoc) set(key, lit string) error {
 		d.lines[s.first] = line + trailingComment(old) + cr
 		return nil
 	}
-	commented := regexp.MustCompile(`^\s*#\s*` + regexp.QuoteMeta(key) + `\s*=`)
 	for i := range d.topEnd {
-		if commented.MatchString(d.lines[i]) {
-			_, cr := cutCR(d.lines[i])
-			d.lines[i] = line + cr
+		if d.inValue(i) {
+			continue // a line of another key's value, not a comment
+		}
+		text, cr := cutCR(d.lines[i])
+		if k, comment, ok := commentedKey(text); ok && k == key {
+			d.lines[i] = line + comment + cr
 			d.keys[key] = lineSpan{i, i}
+			d.kinds[key] = unstable.String
+			d.spans = append(d.spans, lineSpan{i, i})
 			return nil
 		}
 	}
@@ -299,7 +325,7 @@ func (d *tomlDoc) set(key, lit string) error {
 	var at int
 	add := []string{line + cr}
 	last := -1
-	for _, s := range d.keys {
+	for _, s := range d.spans {
 		last = max(last, s.last)
 	}
 	switch {
@@ -316,9 +342,63 @@ func (d *tomlDoc) set(key, lit string) error {
 	default:
 		at = len(d.lines)
 	}
+	if at == len(d.lines) && at > 0 && !d.eol && d.crlf && !strings.HasSuffix(d.lines[at-1], "\r") {
+		d.lines[at-1] += "\r" // the old last line gets its own line end, the file's way
+	}
 	d.insert(at, add)
 	d.keys[key] = lineSpan{at, at}
+	d.kinds[key] = unstable.String
+	d.spans = append(d.spans, lineSpan{at, at})
 	return nil
+}
+
+// inValue reports whether line i belongs to a key-value: such a line is
+// value, never a comment or a header, whatever it looks like.
+func (d *tomlDoc) inValue(i int) bool {
+	for _, s := range d.spans {
+		if i >= s.first && i <= s.last {
+			return true
+		}
+	}
+	return false
+}
+
+// commentedKey reads a commented-out setting, `#key = value # why`: the
+// text after the # must parse as one single-line key-value with a bare key
+// and a scalar value. Prose such as `# editor = the program e opens` does not.
+func commentedKey(line string) (key, comment string, ok bool) {
+	body, found := strings.CutPrefix(strings.TrimLeft(line, " \t"), "#")
+	if !found {
+		return "", "", false
+	}
+	body = strings.TrimLeft(body, " \t")
+	p := &unstable.Parser{}
+	p.Reset([]byte(body))
+	if !p.NextExpression() {
+		return "", "", false
+	}
+	e := p.Expression()
+	if e.Kind != unstable.KeyValue || !scalar(e.Value().Kind) {
+		return "", "", false
+	}
+	var parts []string
+	for k := e.Key(); k.Next(); {
+		parts = append(parts, string(k.Node().Data))
+	}
+	if p.NextExpression() || p.Error() != nil || len(parts) != 1 || strings.Contains(body, "\n") {
+		return "", "", false
+	}
+	return parts[0], trailingComment(body), true
+}
+
+// scalar reports whether a value kind is one a field edits.
+func scalar(k unstable.Kind) bool {
+	switch k {
+	case unstable.String, unstable.Bool, unstable.Integer, unstable.Float:
+		return true
+	default:
+		return false
+	}
 }
 
 // insert puts lines at index at, moving every later span down.
@@ -328,20 +408,31 @@ func (d *tomlDoc) insert(at int, lines []string) {
 }
 
 // unset removes key's lines; a key the file does not set is left alone.
-func (d *tomlDoc) unset(key string) {
+func (d *tomlDoc) unset(key string) error {
 	s, ok := d.keys[key]
 	if !ok {
-		return
+		return nil
+	}
+	if !scalar(d.kinds[key]) {
+		return ErrNotScalar
 	}
 	d.lines = append(d.lines[:s.first], d.lines[s.last+1:]...)
 	delete(d.keys, key)
+	delete(d.kinds, key)
+	d.spans = slices.DeleteFunc(d.spans, func(sp lineSpan) bool { return sp == s })
 	d.shift(s.first, -(s.last - s.first + 1))
+	return nil
 }
 
 func (d *tomlDoc) shift(at, n int) {
 	for k, s := range d.keys {
 		if s.first >= at {
 			d.keys[k] = lineSpan{s.first + n, s.last + n}
+		}
+	}
+	for i, s := range d.spans {
+		if s.first >= at {
+			d.spans[i] = lineSpan{s.first + n, s.last + n}
 		}
 	}
 	if d.firstTable >= at {
@@ -400,6 +491,9 @@ func (d *tomlDoc) bytes() []byte {
 		out += "\n"
 	} else if d.eol {
 		out += "\n"
+	}
+	if d.bom {
+		out = bom + out
 	}
 	return []byte(out)
 }

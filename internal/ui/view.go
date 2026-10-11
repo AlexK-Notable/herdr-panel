@@ -539,11 +539,16 @@ func (m *Model) textLines(i int, sec *spec.Section, w int) []line {
 		}
 		text = ts.text
 	}
+	// Prose wraps at words: cutting a line would drop its end, which is
+	// often the part that matters.
+	tw := max(1, w-4)
 	var out []line
 	for l := range strings.SplitSeq(strings.TrimRight(text, "\n"), "\n") {
-		out = append(out, line{plain("   " + ansi.Truncate(l, max(1, w-4), "…"))})
-		if len(out) >= 200 {
-			break
+		for wl := range strings.SplitSeq(ansi.Wrap(l, tw, ""), "\n") {
+			out = append(out, line{plain("   " + ansi.Truncate(wl, tw, "…"))})
+			if len(out) >= 200 {
+				return out
+			}
 		}
 	}
 	return out

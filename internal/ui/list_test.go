@@ -176,3 +176,19 @@ func TestPollingFollowsTheDriverClock(t *testing.T) {
 		t.Fatalf("%d polls after 15 s, want 4", polls())
 	}
 }
+
+func TestTextSectionWrapsLongLines(t *testing.T) {
+	t.Parallel()
+	src := `spec = 1
+title = "Notes"
+[[section]]
+kind = "text"
+source = ["say"]
+`
+	long := strings.Repeat("words that fill the line ", 8) + "TAIL_WORD"
+	f := open(t, src, "", observe.Stub{Match: []string{"say"}, Stdout: long + "\nsecond line"})
+	f.expectFrame("TAIL_WORD", "second line")
+	if strings.Contains(f.frame(), "…") {
+		t.Errorf("a line was cut:\n%s", f.frame())
+	}
+}

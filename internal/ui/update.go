@@ -342,6 +342,10 @@ func (m *Model) panelKey(k string) tea.Cmd {
 		}
 	case "delete", "backspace":
 		if f := m.focusedField(); f != nil {
+			if f.Required {
+				m.setStatus(statusErr, "%s is required; it cannot be reset", f.Label)
+				return nil
+			}
 			return m.setField(f, "", true)
 		}
 	}
@@ -496,7 +500,7 @@ func (m *Model) adjust(f *spec.Field, delta int) tea.Cmd {
 				i = j
 			}
 		}
-		if f.Default == "" {
+		if unsettable(f) {
 			// Not set is a stop of its own, before the first choice.
 			n := len(f.Choices) + 1
 			i = (i + 1 + delta + n) % n

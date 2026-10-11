@@ -36,6 +36,10 @@ may break the spec or the Go API, and every such break is listed under
   typed by field, with comments and tables kept.
 - A choice with no `default` can be set back to "not set", removing its key.
 - `examples/file-viewer.toml`: settings for herdr-file-viewer.
+- Clearing a field removes its key (always for a number, and for any field in a TOML
+  file) instead of writing an empty value; a `required` field cannot be cleared.
+- Text sections wrap long lines at words instead of cutting them.
+- A store path that starts with an empty `{env.X}` is an error, not `/…`.
 
 ### Breaking
 

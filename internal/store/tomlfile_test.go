@@ -243,8 +243,11 @@ func FuzzTOMLSet(f *testing.F) {
 			return // multi-line: refused
 		}
 		var after map[string]any
-		if _, scalar := tomlValues2(before)[key]; !scalar && before[key] != nil {
-			return // the key names a table: Save refuses (TestTOMLKeyNamingATableIsRefused)
+		if _, isScalar := tomlValues2(before)[key]; !isScalar && before[key] != nil {
+			// A [table] of that name: the edit does not parse, and Save's
+			// re-parse refuses it (TestTOMLKeyNamingATableIsRefused). An
+			// inline table or array was refused by set itself, above.
+			return
 		}
 		if err := toml.Unmarshal(doc.bytes(), &after); err != nil {
 			t.Fatalf("set %s in %q: output does not parse: %v\n%s", key, src, err, doc.bytes())
@@ -287,5 +290,78 @@ func TestTOMLKeyNamingATableIsRefused(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(path); string(data) != src {
 		t.Errorf("the file changed: %q", data)
+	}
+}
+
+// The cases the M6/M7 review reproduced, each with its input.
+func TestTOMLReviewCases(t *testing.T) {
+	t.Parallel()
+	ints := map[string]Kind{"b": KindInt, "c": KindInt}
+	for _, c := range []struct {
+		name, in, key, val, want string
+		kinds                    map[string]Kind
+	}{
+		// A line of another key's multi-line value is value, not a comment.
+		{
+			"commented default in a multi-line string", "script = \"\"\"\n#editor = old\n\"\"\"\n", "editor", "vim",
+			"script = \"\"\"\n#editor = old\n\"\"\"\neditor = \"vim\"\n", nil,
+		},
+		{
+			"in a literal string", "script = '''\n# editor = x\nmore\n'''\n[keys]\n", "editor", "vim",
+			"script = '''\n# editor = x\nmore\n'''\neditor = \"vim\"\n[keys]\n", nil,
+		},
+		{
+			"in a dotted key's value", "a.b = \"\"\"\n#editor = x\n\"\"\"\n", "editor", "vim",
+			"a.b = \"\"\"\n#editor = x\n\"\"\"\neditor = \"vim\"\n", nil,
+		},
+		{
+			"a header inside a string", "s = \"\"\"\n[x]\n\"\"\"\n#b = 1\n", "b", "5",
+			"s = \"\"\"\n[x]\n\"\"\"\nb = 5\n", ints,
+		},
+		{
+			"in a multi-line array", "arr = [\n  1,\n  #editor = 2\n]\n", "editor", "x",
+			"arr = [\n  1,\n  #editor = 2\n]\neditor = \"x\"\n", nil,
+		},
+		// Prose that reads like a setting is not one.
+		{
+			"prose comment", "# editor = the program e opens\n#editor = \"vim\"\n", "editor", "nano",
+			"# editor = the program e opens\neditor = \"nano\"\n", nil,
+		},
+		// A commented default keeps its own comment.
+		{
+			"commented default's comment", "#baseline = \"base\" # optional override\n", "baseline", "head",
+			"baseline = \"head\" # optional override\n", nil,
+		},
+		// CRLF without a final line end stays CRLF throughout.
+		{"crlf, no final line end", "a = 1\r\nb = 2", "c", "3", "a = 1\r\nb = 2\r\nc = 3\r\n", ints},
+		// A byte order mark is kept.
+		{"bom", "\ufeffa = 1\n", "c", "3", "\ufeffa = 1\nc = 3\n", ints},
+	} {
+		if got := edit(t, c.in, c.kinds, map[string]Change{c.key: set(c.val)}); got != c.want {
+			t.Errorf("%s:\n got %q\nwant %q", c.name, got, c.want)
+		}
+	}
+}
+
+func TestTOMLNonScalarValuesAreRefused(t *testing.T) {
+	t.Parallel()
+	for _, src := range []string{"x = { y = 1 }\n", "x = [1, 2]\n", "x = 1979-05-27\n"} {
+		path := filepath.Join(t.TempDir(), "c.toml")
+		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		f := &TOMLFile{Path: path}
+		snap, err := f.Load(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range []Change{set("v"), {Unset: true}} {
+			if _, err := f.Save(context.Background(), snap, map[string]Change{"x": c}); !errors.Is(err, ErrNotScalar) {
+				t.Errorf("%q, %+v: err = %v", src, c, err)
+			}
+		}
+		if data, _ := os.ReadFile(path); string(data) != src {
+			t.Errorf("%q changed to %q", src, data)
+		}
 	}
 }

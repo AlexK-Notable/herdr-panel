@@ -245,7 +245,17 @@ func ExpandArgv(argv []Template, v Values, dir string) ([]string, error) {
 
 // ExpandPath expands a path template, then a leading ~, then makes it
 // absolute against dir.
+//
+// A path that starts with {env.X} needs X to be non-empty: an empty one
+// would turn "{env.X}/config.toml" into "/config.toml".
 func ExpandPath(t Template, v Values, dir string) (string, error) {
+	if pt, err := t.parsed(); err == nil && len(pt.parts) > 0 {
+		if first := pt.parts[0]; first.ns == NSEnv && !first.hasDef && v != nil {
+			if val, ok := v.Lookup(NSEnv, first.name); ok && val == "" {
+				return "", fmt.Errorf("{env.%s} is empty: %w", first.name, ErrMissing)
+			}
+		}
+	}
 	s, err := t.Expand(v)
 	if err != nil {
 		return "", err

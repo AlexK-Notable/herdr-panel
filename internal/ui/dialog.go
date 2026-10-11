@@ -101,8 +101,8 @@ func (m *Model) openPicker(f *spec.Field) {
 	// A choice with no default can also be left out of the file: the
 	// program then decides. "not set" comes first, and removes the key.
 	var opts []string
-	unsettable := f.Default == ""
-	if unsettable {
+	canUnset := unsettable(f)
+	if canUnset {
 		opts = append(opts, notSet)
 	}
 	sel := 0
@@ -115,7 +115,7 @@ func (m *Model) openPicker(f *spec.Field) {
 	m.dialog = &dialog{
 		kind: dialogPicker, title: f.Label, options: opts, cursor: sel,
 		onChoose: func(i int) tea.Cmd {
-			if unsettable {
+			if canUnset {
 				if i == 0 {
 					return m.setField(f, "", true)
 				}
@@ -124,6 +124,20 @@ func (m *Model) openPicker(f *spec.Field) {
 			return m.setField(f, f.Choices[i].Value, false)
 		},
 	}
+}
+
+// unsettable reports whether a choice offers "not set": it has no default
+// to fall back to, it is not required, and no choice is already "".
+func unsettable(f *spec.Field) bool {
+	if f.Default != "" || f.Required {
+		return false
+	}
+	for _, c := range f.Choices {
+		if c.Value == "" {
+			return false
+		}
+	}
+	return true
 }
 
 // notSet names the value of a choice left out of the file.

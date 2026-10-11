@@ -1,0 +1,4 @@
+go test fuzz v1
+string("s = \"\"\"\n[x]\n\"\"\"\n#b = 1\n")
+string("editor")
+string("v")

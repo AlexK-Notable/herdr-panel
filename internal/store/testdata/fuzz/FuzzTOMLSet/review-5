@@ -1,0 +1,4 @@
+go test fuzz v1
+string("x = { y = 1 }\n#editor = \"v\"\n")
+string("editor")
+string("v")

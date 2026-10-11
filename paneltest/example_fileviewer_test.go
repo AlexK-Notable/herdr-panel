@@ -52,3 +52,24 @@ tree_position = "right"
 		t.Errorf("config:\n%s\nwant:\n%s\nframe:\n%s", got, want, p.Frame())
 	}
 }
+
+// In a TOML file an absent key and an empty one differ (the viewer uses
+// $EDITOR only when editor is absent), so clearing a field removes the key.
+func TestTOMLClearedFieldIsRemoved(t *testing.T) {
+	t.Parallel()
+	s, err := spec.Load("../examples/file-viewer.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("editor = \"vim\"\nhide_dotfiles = true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p := paneltest.New(t, s, paneltest.Config{Height: 50, Stores: map[string]string{"config": path}})
+	p.Click("field:editor")
+	p.Key("ctrl+u", "enter", "ctrl+s")
+	p.RequireFrame("✓ saved")
+	if got := p.StoreText("config"); got != "hide_dotfiles = true\n" {
+		t.Errorf("config = %q", got)
+	}
+}

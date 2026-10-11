@@ -59,9 +59,13 @@ func TestAutoTitleSettingsPanel(t *testing.T) {
 
 	w.start()
 	w.cli("plugin", "link", dir)
-	w.cli("plugin", "action", "invoke", "settings", "--plugin", "herdr.auto-title")
+	w.cli("plugin", "action", "invoke", "open-settings", "--plugin", "herdr.auto-title")
 	w.waitText("Auto Title")
 	w.waitText("Debug logging")
+	// The two settings this test sets in herdr's environment win over the
+	// file, and the panel says so.
+	w.waitText("HERDR_AUTO_TITLE_AGENTS,")
+	w.waitText("HERDR_AUTO_TITLE_NAME_WORKSPACES")
 
 	x, y, ok := w.find("Debug logging")
 	if !ok {
@@ -159,12 +163,30 @@ func processes(program, root string) []int {
 	return pids
 }
 
+// killPlugin ends the plugin's processes in the world under root, and
+// waits for them: a restarted instance has a session of its own and would
+// otherwise outlive the test.
 func killPlugin(t *testing.T, dir, root string) {
 	t.Helper()
-	for _, prog := range []string{dir + "/herdr-auto-title", dir + "/bin/herdr-panel"} {
-		for _, pid := range processes(prog, root) {
-			_ = syscall.Kill(pid, syscall.SIGTERM)
+	progs := []string{dir + "/herdr-auto-title", dir + "/bin/herdr-panel"}
+	left := func(sig syscall.Signal) int {
+		n := 0
+		for _, prog := range progs {
+			for _, pid := range processes(prog, root) {
+				_ = syscall.Kill(pid, sig)
+				n++
+			}
 		}
+		return n
+	}
+	left(syscall.SIGTERM)
+	for deadline := time.Now().Add(15 * time.Second); time.Now().Before(deadline); time.Sleep(100 * time.Millisecond) {
+		if left(0) == 0 {
+			return
+		}
+	}
+	if n := left(syscall.SIGKILL); n > 0 {
+		t.Errorf("%d plugin processes ignored SIGTERM for 15 s", n)
 	}
 }
 

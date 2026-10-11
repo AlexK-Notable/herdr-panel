@@ -688,3 +688,22 @@ Each entry says what changed from the plan above, and why.
     someone else, work without special cases. Both consumer tests are in `integration/`.
   - Store construction is one function (`ui.NewStore`) shared by the panel, paneltest and
     `observe --sandbox`, so the three cannot disagree on a store's kind.
+- **M6/M7 review fixes** (Opus review, `misc/reviews/m6-m7-review.md`; H1, M1–M6, L1–L13).
+  Every fix has a test that was seen red against the old code; fuzzing ran 97M inputs clean.
+  - **The TOML store reads values, not lines** (H1, L7): lines inside another key's multi-line
+    value are skipped when looking for commented defaults and headers. A commented default is a
+    comment whose text parses as one one-line `key = value` (M6), so prose is not one; its own
+    trailing comment is kept (L1). Keys holding inline tables, arrays or dates are refused, not
+    overwritten (M2). CRLF without a final newline (L2) and a byte order mark (L6) survive.
+  - **Clearing removes a key** instead of writing `""` (M3, L3): always for a number, and for
+    any field in a TOML file, whose programs tell absent from empty. A `required` field cannot
+    be cleared or set to "not set" (M1); a choice that already offers `""` gets no "not set"
+    (L4). A store path starting with an empty `{env.X}` is an error (L5).
+  - **The consumers** (local commits, not pushed): the fork drops an inherited
+    `HERDR_AUTO_TITLE_CONFIG_FILE` (M4), lists the environment variables that override the
+    file in a text section (M5), renames its action `open-settings` (L10), and its restarted
+    instance no longer inherits `PANEL_*`; the viewer gets docs, a CHANGELOG entry and manifest
+    comments back in place (L9, L11). The integration test waits for killed plugin processes
+    to exit (L13).
+  - **The integration run then found that text sections cut long lines**, dropping the
+    override names at the popup's width. Text sections now wrap at words.

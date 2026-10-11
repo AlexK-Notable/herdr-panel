@@ -42,7 +42,7 @@ leave a file its program cannot parse is refused.
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `kind` | string | required | `"envfile"` or `"tomlfile"`. |
-| `path` | string | required | May use `{env.*}` and `{ctx.*}`. A leading `~` is the home directory. A relative path is relative to the spec file's directory. |
+| `path` | string | required | May use `{env.*}` and `{ctx.*}`. A leading `~` is the home directory. A relative path is relative to the spec file's directory. A path that starts with `{env.X}` needs `X` set and non-empty. |
 | `create` | boolean | `true` | Create the file (mode 0600) on first save when it does not exist. |
 | `apply` | command | none | Run after a save that changed this store, e.g. to restart the program that reads it. |
 
@@ -56,13 +56,23 @@ In a `tomlfile`:
 - A field is written as the TOML type its program reads: a `bool` as
   `true`/`false`, an `int` or `duration_s` as an integer, everything else
   as a string. A `bool`'s `true_value`/`false_value` do not apply.
+- A commented default is a comment whose text is itself a one-line
+  `key = value`; prose such as `# editor = the program e opens` is not
+  one, and nor is a line inside another key's multi-line value.
 - A key with no commented default goes after the last top-level key, or,
   if there is none, above the first table header, **commented-out headers
   included**: uncommenting `#[keys]` later must not pull the new key into
-  that table.
-- A value spanning several lines (a multi-line string or array) is left
-  for you to edit by hand, and so is a key that names a table.
-- A comment after a value (`n = 3 # why`) is kept.
+  that table. (Once the file has top-level keys below such a header, new
+  keys join them there.)
+- A value spanning several lines (a multi-line string or array), and a key
+  holding an inline table, an array or a date, are left for you to edit by
+  hand; so is a key that names a table.
+- A comment after a value (`n = 3 # why`), or after a commented default,
+  is kept. Line ends (CRLF, a missing final one) and a byte order mark are
+  kept.
+- **Clearing a field removes its key** rather than writing `key = ""`: the
+  program then uses its own default. (A cleared `int` or `duration_s` is
+  removed from an env file too.)
 
 ## Sections
 
@@ -113,7 +123,10 @@ The types:
   as `custom: <value>` and left untouched unless you change it.
 - **A choice field with no `default`** can also be left out of the file, so
   that its program decides. It shows as `not set`, and its picker offers
-  *not set* first, which removes the key.
+  *not set* first, which removes the key. Not for a `required` field, nor
+  when one of the choices is already `""`.
+- **`required`**: an empty value cannot be saved, and the field cannot be
+  reset with Delete.
 
 ### `list`
 
@@ -148,7 +161,9 @@ buttons = [ { label = "Restart", key = "R", run = ["./my-plugin", "restart"], co
 ### `text`
 
 `text = "..."` shows fixed text. A `source` command instead shows the
-command's output, which `every_s` can refresh.
+command's output, which `every_s` can refresh. Lines wrap at words to the
+panel's width (a word longer than the line is broken), and at most 200 lines
+are shown.
 
 ### `view` (experimental)
 

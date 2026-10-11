@@ -133,6 +133,9 @@ func (m *Model) setField(f *spec.Field, v string, unset bool) tea.Cmd {
 	if ss == nil {
 		return nil
 	}
+	if !unset && v == "" && emptyMeansUnset(f, ss.def) {
+		unset = true
+	}
 	cur, inFile := ss.snap.Values[f.Key]
 	switch {
 	case unset && !inFile, !unset && inFile && cur == v:
@@ -146,6 +149,21 @@ func (m *Model) setField(f *spec.Field, v string, unset bool) tea.Cmd {
 		return m.saveStore(f.Store, nil)
 	}
 	return nil
+}
+
+// emptyMeansUnset reports whether clearing a field removes its key rather
+// than writing an empty value: always for a number, which "" is not, and for
+// any field in a TOML file, whose programs tell an absent key (use the
+// default, or $EDITOR) from an empty one. A choice's "" is a choice.
+func emptyMeansUnset(f *spec.Field, sd *spec.Store) bool {
+	switch f.Type {
+	case spec.Choice:
+		return false
+	case spec.Int, spec.Duration:
+		return true
+	case spec.Bool, spec.Text, spec.Secret:
+	}
+	return sd != nil && sd.Kind == spec.TOMLFile
 }
 
 // save writes every store with edits. then, if set, runs once all of them

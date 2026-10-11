@@ -202,3 +202,57 @@ fields = [ { key = "B", type = "choice", label = "Base", choices = ["base", "hea
 	f.key("right", "right") // → head → not set
 	f.expectFrame("‹ not set ›")
 }
+
+// A required choice is never "not set": not from its picker, not with ←/→,
+// not with delete.
+func TestRequiredChoiceCannotBeUnset(t *testing.T) {
+	t.Parallel()
+	src := `spec = 1
+title = "P"
+[stores.c]
+kind = "envfile"
+path = "c.env"
+[[section]]
+fields = [ { key = "R", type = "choice", label = "Req", required = true, choices = ["a", "b"] } ]
+`
+	f := open(t, src, "R=a\n")
+	f.click("field:R")
+	if strings.Contains(f.frame(), "not set") {
+		t.Fatalf("the picker offers not set:\n%s", f.frame())
+	}
+	f.key("esc")
+	f.key("right", "right") // a → b → a, never not set
+	f.expectFrame("‹ a ›")
+	f.key("delete")
+	f.expectFrame("Req is required", "‹ a ›")
+}
+
+// An int cleared in the editor is removed, not written empty (an envfile
+// would hold N=, which no program reads as a number).
+func TestClearedNumberIsRemoved(t *testing.T) {
+	t.Parallel()
+	f := open(t, settings, "N=5\nON=true\n")
+	f.click("field:N")
+	f.key("ctrl+u", "enter", "ctrl+s")
+	if got := f.fileText(); got != "ON=true\n" {
+		t.Fatalf("file = %q", got)
+	}
+}
+
+// A choice whose values include "" has no separate "not set".
+func TestChoiceWithEmptyValueHasNoNotSet(t *testing.T) {
+	t.Parallel()
+	src := `spec = 1
+title = "P"
+[stores.c]
+kind = "envfile"
+path = "c.env"
+[[section]]
+fields = [ { key = "E", type = "choice", label = "E", choices = [ { value = "", label = "auto" }, { value = "x", label = "X" } ] } ]
+`
+	f := open(t, src, "")
+	f.click("field:E")
+	if strings.Contains(f.frame(), "not set") {
+		t.Fatalf("the picker offers not set beside auto:\n%s", f.frame())
+	}
+}

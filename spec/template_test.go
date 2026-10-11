@@ -103,3 +103,15 @@ func TestExpandPath(t *testing.T) {
 		}
 	}
 }
+
+// A store path that starts with an empty {env.X} is missing, not "/…".
+func TestExpandPathEmptyLeadingEnv(t *testing.T) {
+	t.Parallel()
+	vals := ValuesFunc(func(ns, name string) (string, bool) { return "", ns == NSEnv && name == "DIR" })
+	if p, err := ExpandPath(MustTemplate("{env.DIR}/config.toml"), vals, "/spec"); !errors.Is(err, ErrMissing) {
+		t.Errorf("got %q, %v", p, err)
+	}
+	if p, err := ExpandPath(MustTemplate("{env.DIR:-/etc}/config.toml"), vals, "/spec"); err != nil || p != "/etc/config.toml" {
+		t.Errorf("with a default: %q, %v", p, err)
+	}
+}
