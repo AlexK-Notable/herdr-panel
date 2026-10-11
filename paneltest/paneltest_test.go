@@ -256,7 +256,6 @@ func TestViewTicksFollowTheTestClock(t *testing.T) {
 	t.Parallel()
 	p, c := counterPanel(t)
 	p.Click("view:counter:inc")
-	start := time.Now()
 	p.Key("t")
 	if len(c.ticks) != 0 {
 		t.Fatalf("a tick arrived before time moved: %v", c.ticks)
@@ -265,17 +264,17 @@ func TestViewTicksFollowTheTestClock(t *testing.T) {
 	if len(c.ticks) != 3 {
 		t.Fatalf("after 3.5 s, %d ticks, want 3", len(c.ticks))
 	}
+	// The test clock starts in 2000: a tick that slept for real would carry
+	// today's date.
+	epoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	for i, at := range c.ticks {
-		if want := time.Duration(i+1) * time.Second; at.Sub(c.ticks[0].Add(-time.Second)) != want {
-			t.Errorf("tick %d at %v, want +%v", i, at, want)
+		if want := epoch.Add(time.Duration(i+1) * time.Second); !at.Equal(want) {
+			t.Errorf("tick %d at %v, want %v", i, at, want)
 		}
 	}
 	p.Advance(500 * time.Millisecond) // the re-armed fourth falls due at 4 s
 	if len(c.ticks) != 4 {
 		t.Errorf("after 4 s, %d ticks, want 4", len(c.ticks))
-	}
-	if took := time.Since(start); took > time.Second {
-		t.Errorf("the ticks slept for real: %v", took)
 	}
 }
 
