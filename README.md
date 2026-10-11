@@ -193,6 +193,9 @@ Every module the library or its tests compile against has a row here;
 
 | Module | License | Where |
 |---|---|---|
+| `github.com/pelletier/go-toml/v2` | MIT | library: spec decoding with positions |
+| `github.com/santhosh-tekuri/jsonschema/v6` | Apache-2.0 | tests: validates the examples against the published JSON Schema |
+| `golang.org/x/text` | BSD-3-Clause | tests: required by jsonschema |
 | [herdr](https://github.com/herdrdev/herdr) | Apache-2.0 | not included: herdr-panel talks to a running herdr through its CLI and socket API |
 | [pyte](https://github.com/selectel/pyte) | LGPL-3.0 | spike tooling only (`spike/harness.py` imports an installed copy); not included |
 

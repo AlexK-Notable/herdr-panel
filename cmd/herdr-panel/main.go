@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"runtime/debug"
+
+	"github.com/AlexK-Notable/herdr-panel/spec"
 )
 
 // Exit codes are part of the CLI's contract (docs/PLAN.md, contract item 3).
@@ -14,6 +16,7 @@ const (
 	exitOK      = 0
 	exitRuntime = 1
 	exitUsage   = 2
+	exitSpec    = 3
 )
 
 const usage = `usage: herdr-panel <spec.toml>
@@ -36,6 +39,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "version", "--version":
 		fmt.Fprintln(stdout, "herdr-panel", version())
 		return exitOK
+	case "schema":
+		_, _ = stdout.Write(spec.JSONSchema())
+		return exitOK
+	case "validate":
+		return validate(args[1:], stdout, stderr)
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usage)
 		return exitOK
@@ -50,4 +58,29 @@ func version() string {
 		return info.Main.Version
 	}
 	return "devel"
+}
+
+// validate checks each spec and reports every problem with file:line:col.
+func validate(paths []string, stdout, stderr io.Writer) int {
+	if len(paths) == 0 {
+		fmt.Fprint(stderr, usage)
+		return exitUsage
+	}
+	code := exitOK
+	for _, p := range paths {
+		if _, err := spec.Load(p); err != nil {
+			fmt.Fprintln(stderr, err)
+			if spec.IsSpecError(err) {
+				code = max(code, exitSpec)
+			} else {
+				code = max(code, exitRuntime)
+			}
+			continue
+		}
+		fmt.Fprintf(stdout, "%s: ok\n", p)
+	}
+	if code == exitRuntime {
+		return exitRuntime // an unreadable file outranks a bad one
+	}
+	return code
 }

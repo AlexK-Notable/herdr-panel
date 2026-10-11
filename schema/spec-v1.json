@@ -1,0 +1,449 @@
+{
+  "$id": "https://github.com/AlexK-Notable/herdr-panel/schema/spec-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "requires": {
+      "pattern": "^\u003e=\\s*v?[0-9]+\\.[0-9]+(\\.[0-9]+)?$",
+      "type": "string"
+    },
+    "save": {
+      "enum": [
+        "save_then_apply",
+        "live"
+      ]
+    },
+    "section": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "buttons": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "after": {
+                  "enum": [
+                    "refresh",
+                    "close",
+                    "none"
+                  ]
+                },
+                "confirm": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "run": {
+                  "description": "A program and its arguments, run without a shell. Each element may hold placeholders.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "timeout_s": {
+                  "maximum": 3600,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "label",
+                "run"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "columns": {
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "key": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "width": {
+                      "maximum": 500,
+                      "minimum": 1,
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "key"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "empty": {
+            "type": "string"
+          },
+          "every_s": {
+            "maximum": 86400,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "fields": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "choices": {
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "label": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": [
+                              "string",
+                              "integer",
+                              "boolean",
+                              "number"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "type": "array"
+                },
+                "default": {
+                  "type": [
+                    "string",
+                    "integer",
+                    "boolean",
+                    "number"
+                  ]
+                },
+                "false_value": {
+                  "type": "string"
+                },
+                "help": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "key": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "max": {
+                  "type": "integer"
+                },
+                "max_len": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "min": {
+                  "type": "integer"
+                },
+                "pattern": {
+                  "type": "string"
+                },
+                "placeholder": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean"
+                },
+                "store": {
+                  "type": "string"
+                },
+                "test": {
+                  "oneOf": [
+                    {
+                      "description": "A program and its arguments, run without a shell. Each element may hold placeholders.",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "run": {
+                          "description": "A program and its arguments, run without a shell. Each element may hold placeholders.",
+                          "items": {
+                            "type": "string"
+                          },
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "timeout_s": {
+                          "maximum": 3600,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "run"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "true_value": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "bool",
+                    "choice",
+                    "int",
+                    "duration_s",
+                    "text",
+                    "secret"
+                  ]
+                }
+              },
+              "required": [
+                "key",
+                "type"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "id_column": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "fields",
+              "list",
+              "buttons",
+              "text"
+            ]
+          },
+          "row_actions": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "after": {
+                  "enum": [
+                    "refresh",
+                    "close",
+                    "none"
+                  ]
+                },
+                "confirm": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "run": {
+                  "description": "A program and its arguments, run without a shell. Each element may hold placeholders.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "timeout_s": {
+                  "maximum": 3600,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "label",
+                "run"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "description": "A program and its arguments, run without a shell. Each element may hold placeholders.",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "every_s": {
+                    "maximum": 86400,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "run": {
+                    "description": "A program and its arguments, run without a shell. Each element may hold placeholders.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "timeout_s": {
+                    "maximum": 3600,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "run"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "size": {
+      "additionalProperties": false,
+      "properties": {
+        "height": {
+          "oneOf": [
+            {
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "pattern": "^([1-9][0-9]?|100)%$",
+              "type": "string"
+            }
+          ]
+        },
+        "width": {
+          "oneOf": [
+            {
+              "maximum": 1000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "pattern": "^([1-9][0-9]?|100)%$",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "spec": {
+      "const": 1
+    },
+    "stores": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "apply": {
+            "oneOf": [
+              {
+                "description": "A program and its arguments, run without a shell. Each element may hold placeholders.",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "run": {
+                    "description": "A program and its arguments, run without a shell. Each element may hold placeholders.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "timeout_s": {
+                    "maximum": 3600,
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "run"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          "create": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "envfile"
+            ]
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "path"
+        ],
+        "type": "object"
+      },
+      "type": "object"
+    },
+    "title": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "spec",
+    "title",
+    "section"
+  ],
+  "title": "herdr-panel spec, version 1",
+  "type": "object"
+}

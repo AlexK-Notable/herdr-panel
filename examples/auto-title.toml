@@ -1,0 +1,48 @@
+# Settings and workspace naming for herdr-auto-title (AlexK-Notable fork).
+spec = 1
+title = "Auto Title"
+size = { width = "70%", height = "70%" }
+
+[stores.config]
+kind = "envfile"
+path = "{env.XDG_CONFIG_HOME:-~/.config}/herdr-auto-title/config.env"
+# A saved change takes effect when the plugin restarts.
+apply = ["herdr", "plugin", "action", "invoke", "restart", "--plugin", "herdr.auto-title"]
+
+[[section]]
+title = "Titles"
+fields = [
+  { key = "HERDR_AUTO_TITLE_MAX_LENGTH", type = "int", label = "Longest title", min = 8, max = 200, default = 50,
+    help = "Columns of the tab bar a title may use." },
+  { key = "HERDR_AUTO_TITLE_BRANCH_MAX", type = "int", label = "Longest branch", min = 0, max = 80, default = 12,
+    help = "0 leaves branches out of titles." },
+  { key = "HERDR_AUTO_TITLE_POSITION", type = "bool", label = "Tab position first", default = true },
+  { key = "HERDR_AUTO_TITLE_PANES", type = "bool", label = "Name panes too", default = true },
+  { key = "HERDR_AUTO_TITLE_PREFER_AGENT", type = "bool", label = "Prefer the agent pane", default = false },
+  { key = "HERDR_AUTO_TITLE_PANE_ID", type = "bool", label = "Show pane ids", default = false },
+]
+
+[[section]]
+title = "Agent names"
+fields = [
+  { key = "HERDR_AUTO_TITLE_AGENTS", type = "bool", label = "Name agents", default = true },
+  { key = "HERDR_AUTO_TITLE_NAMER", type = "choice", label = "Model via", default = "cli",
+    choices = [ { value = "cli", label = "claude -p (subscription)" }, { value = "api", label = "Anthropic API (key)" } ] },
+  { key = "HERDR_AUTO_TITLE_NAMER_MODEL", type = "text", label = "Model", default = "claude-haiku-5-5",
+    pattern = "[a-z0-9.-]+" },
+  { key = "HERDR_AUTO_TITLE_NAMER_INTERVAL_S", type = "duration_s", label = "Agent re-ask", min = 10, max = 3600, default = 120 },
+  { key = "HERDR_AUTO_TITLE_NAME_WORKSPACES", type = "bool", label = "Name workspaces", default = true },
+  { key = "HERDR_AUTO_TITLE_WORKSPACE_INTERVAL_S", type = "duration_s", label = "Workspace re-ask", min = 30, max = 86400, default = 300 },
+]
+
+[[section]]
+title = "Workspaces"
+kind = "list"
+source = { run = ["./herdr-auto-title", "panel", "workspaces"], every_s = 5 }
+columns = [ { key = "label", title = "Workspace" }, { key = "locked", title = "Locked", width = 8 } ]
+empty = "No workspaces yet."
+row_actions = [
+  { label = "Rename now", key = "r", run = ["./herdr-auto-title", "workspace", "rename-now", "{row.id}"] },
+  { label = "Hand back", key = "h", run = ["./herdr-auto-title", "workspace", "release", "{row.id}"],
+    confirm = "Let Auto Title name {row.label} again?" },
+]

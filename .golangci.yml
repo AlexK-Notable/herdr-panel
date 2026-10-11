@@ -67,6 +67,7 @@ linters:
             - github.com/charmbracelet/x/exp/golden
             - github.com/pelletier/go-toml/v2
             - github.com/joho/godotenv
+            - github.com/santhosh-tekuri/jsonschema/v6
             - golang.org/x/sys/unix
         # Commands run in one package, so its guarantees (no shell, timeout,
         # output cap, process group) cannot be bypassed by accident.
@@ -85,6 +86,8 @@ linters:
           deny:
             - pkg: github.com/joho/godotenv
               desc: test oracle only; the env-file store is hand-written
+            - pkg: github.com/santhosh-tekuri/jsonschema/v6
+              desc: tests only; Validate checks specs
     exhaustive:
       default-signifies-exhaustive: true
     forbidigo:

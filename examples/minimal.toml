@@ -1,0 +1,13 @@
+# The smallest useful panel: one env file, one switch.
+spec = 1
+title = "Minimal"
+
+[stores.config]
+kind = "envfile"
+path = "{env.XDG_CONFIG_HOME:-~/.config}/minimal-example/config.env"
+
+[[section]]
+title = "General"
+fields = [
+  { key = "VERBOSE", type = "bool", label = "Verbose logging", default = false },
+]

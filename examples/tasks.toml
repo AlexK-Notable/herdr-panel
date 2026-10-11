@@ -1,0 +1,39 @@
+# A list-heavy panel: rows from a command, actions on each row, buttons and a
+# log view. The commands are placeholders for a plugin's own.
+spec = 1
+title = "Tasks"
+save = "live"
+
+[stores.prefs]
+kind = "envfile"
+path = "{ctx.state_dir}/prefs.env"
+
+[[section]]
+title = "Options"
+fields = [
+  { id = "show_done", key = "TASKS_SHOW_DONE", type = "bool", label = "Show finished tasks", default = false },
+  { key = "TASKS_OWNER", type = "text", label = "Owner", placeholder = "anyone", max_len = 32 },
+]
+
+[[section]]
+title = "Tasks"
+kind = "list"
+source = { run = ["./tasks", "list", "--json", "--done={field.show_done}"], every_s = 10, timeout_s = 5 }
+columns = [ "title", { key = "state", width = 10 }, { key = "owner", width = 12 } ]
+row_actions = [
+  { label = "Start", key = "s", run = ["./tasks", "start", "{row.id}"] },
+  { label = "Delete", key = "d", run = ["./tasks", "delete", "{row.id}"], confirm = "Delete {row.title}?" },
+]
+
+[[section]]
+title = "Actions"
+kind = "buttons"
+buttons = [
+  { label = "New task", key = "n", run = ["./tasks", "new", "--owner={field.TASKS_OWNER}"] },
+  { label = "Done", key = "x", run = ["true"], after = "close" },
+]
+
+[[section]]
+title = "Log"
+kind = "text"
+source = { run = ["./tasks", "log", "--tail", "20"], every_s = 5 }
