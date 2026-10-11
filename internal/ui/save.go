@@ -336,6 +336,8 @@ func (m *Model) values(row map[string]string) spec.Values {
 		case spec.NSRow:
 			v, ok := row[name]
 			return v, ok
+		case spec.NSSel:
+			return m.selValue(name)
 		case spec.NSField:
 			for _, f := range m.spec.Fields() {
 				if f.ID == name && f.Type != spec.Secret {

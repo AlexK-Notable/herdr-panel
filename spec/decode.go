@@ -313,6 +313,9 @@ func decodeSection(i int, t *table, c *collector) *Section {
 			c.add(t.pos, "%s has no fields (a fields section needs fields = [...])", what)
 		}
 	case ListSection:
+		if s, _, ok := o.str("id"); ok {
+			sec.ID = s
+		}
 		decodeSource(o, sec, c, what, true)
 		if v, p, ok := o.get("columns"); ok {
 			sec.Columns = decodeColumns(c, v, p)
@@ -465,10 +468,10 @@ func decodeAction(t *table, c *collector, what string, after After) *Action {
 	}
 	if s, sp, ok := o.str("after"); ok {
 		switch After(s) {
-		case AfterRefresh, AfterClose, AfterNothing:
+		case AfterRefresh, AfterClose, AfterNothing, AfterCloseThenRun:
 			a.After = After(s)
 		default:
-			c.add(sp, "after must be refresh, close or none, not %q", s)
+			c.add(sp, "after must be refresh, close, none or close_then_run, not %q", s)
 		}
 	}
 	o.done()

@@ -244,6 +244,12 @@ func validate(s *Spec, c *collector) {
 		checkTemplate(c, t, fallback, what, ns...)
 		p := posOr(t.pos, fallback)
 		for _, ph := range t.Placeholders() {
+			if ph[0] == NSSel {
+				if l, _ := SelRef(ph[1]); slices.Contains(ns, NSSel) && s.List(l) == nil {
+					c.add(p, "%s refers to {sel.%s}, but no list section has id %q", what, ph[1], l)
+				}
+				continue
+			}
 			if ph[0] != NSField {
 				continue
 			}
@@ -265,7 +271,7 @@ func validate(s *Spec, c *collector) {
 				continue
 			}
 			for _, ph := range a.Placeholders() {
-				if ph[0] == NSRow || ph[0] == NSField {
+				if ph[0] == NSRow || ph[0] == NSField || ph[0] == NSSel {
 					c.add(posOr(a.pos, cmd.Pos), "%s: the program cannot come from {%s.%s}; pass the value as an argument", what, ph[0], ph[1])
 				}
 			}
@@ -293,6 +299,34 @@ func validate(s *Spec, c *collector) {
 		}
 	}
 
+	listIDs := map[string]Pos{}
+	for _, sec := range s.Sections {
+		if sec.ID == "" {
+			continue
+		}
+		switch p, dup := listIDs[sec.ID]; {
+		case !validName(sec.ID, false):
+			c.add(sec.Pos, "list id %q must be letters, digits, _ and -", sec.ID)
+		case dup:
+			c.add(sec.Pos, "list id %q is used twice (also at line %d)", sec.ID, p.Line)
+		default:
+			listIDs[sec.ID] = sec.Pos
+		}
+	}
+	for _, sec := range s.Sections {
+		if sec.Title == "" {
+			continue
+		}
+		t, err := ParseTemplate(sec.Title)
+		if err != nil {
+			c.add(sec.Pos, "section title %q: %v", sec.Title, err)
+			continue
+		}
+		t.pos = sec.Pos
+		refs(t, sec.Pos, fmt.Sprintf("section title %q", sec.Title), NSSel, NSCtx, NSEnv)
+	}
+	checkSelCycles(s, c)
+
 	keys := map[string]Pos{}
 	checkKey := func(a *Action) {
 		if a.Key == "" {
@@ -315,20 +349,20 @@ func validate(s *Spec, c *collector) {
 			if len(sec.Columns) == 0 {
 				c.add(sec.Pos, "a list section needs columns = [\"key\", ...]")
 			}
-			cmdRefs(sec.Source, "list source", NSEnv, NSCtx, NSField)
+			cmdRefs(sec.Source, "list source", NSEnv, NSCtx, NSField, NSSel)
 			for _, a := range sec.RowActions {
 				checkKey(a)
-				cmdRefs(a.Run, fmt.Sprintf("row action %q", a.Label), NSEnv, NSCtx, NSField, NSRow)
-				refs(a.Confirm, a.Pos, fmt.Sprintf("row action %q confirm", a.Label), NSEnv, NSCtx, NSField, NSRow)
+				cmdRefs(a.Run, fmt.Sprintf("row action %q", a.Label), NSEnv, NSCtx, NSField, NSRow, NSSel)
+				refs(a.Confirm, a.Pos, fmt.Sprintf("row action %q confirm", a.Label), NSEnv, NSCtx, NSField, NSRow, NSSel)
 			}
 		case ButtonsSection:
 			for _, a := range sec.Buttons {
 				checkKey(a)
-				cmdRefs(a.Run, fmt.Sprintf("button %q", a.Label), NSEnv, NSCtx, NSField)
-				refs(a.Confirm, a.Pos, fmt.Sprintf("button %q confirm", a.Label), NSEnv, NSCtx, NSField)
+				cmdRefs(a.Run, fmt.Sprintf("button %q", a.Label), NSEnv, NSCtx, NSField, NSSel)
+				refs(a.Confirm, a.Pos, fmt.Sprintf("button %q confirm", a.Label), NSEnv, NSCtx, NSField, NSSel)
 			}
 		case TextSection:
-			cmdRefs(sec.Source, "text source", NSEnv, NSCtx, NSField)
+			cmdRefs(sec.Source, "text source", NSEnv, NSCtx, NSField, NSSel)
 		case FieldsSection, ViewSection:
 		}
 	}
@@ -515,8 +549,8 @@ func checkTemplate(c *collector, t Template, fallback Pos, what string, allowed 
 	for _, ph := range t.Placeholders() {
 		ns, name := ph[0], ph[1]
 		switch {
-		case !slices.Contains([]string{NSRow, NSField, NSCtx, NSEnv}, ns):
-			c.add(p, "%s: unknown placeholder namespace {%s.%s} (use row, field, ctx or env)", what, ns, name)
+		case !slices.Contains([]string{NSRow, NSField, NSSel, NSCtx, NSEnv}, ns):
+			c.add(p, "%s: unknown placeholder namespace {%s.%s} (use row, field, sel, ctx or env)", what, ns, name)
 		case !slices.Contains(allowed, ns):
 			c.add(p, "%s cannot use {%s.%s} (allowed here: %s)", what, ns, name, strings.Join(allowed, ", "))
 		case ns == NSCtx && !slices.Contains(CtxNames, name):
@@ -566,4 +600,53 @@ func bareTOMLKey(k string) bool {
 		}
 	}
 	return true
+}
+
+// checkSelCycles refuses lists whose sources follow each other's selection
+// in a circle (a list following its own selection included): each would
+// refresh the next for ever.
+func checkSelCycles(s *Spec, c *collector) {
+	deps := map[string][]string{}
+	for _, sec := range s.Sections {
+		if sec.Kind == ListSection && sec.ID != "" {
+			deps[sec.ID] = sec.Source.SelLists()
+		}
+	}
+	const (
+		unseen = iota
+		visiting
+		done
+	)
+	state := map[string]int{}
+	reported := map[string]bool{}
+	var visit func(id string, path []string)
+	visit = func(id string, path []string) {
+		switch state[id] {
+		case done:
+			return
+		case visiting:
+			i := slices.Index(path, id)
+			cycle := append(slices.Clone(path[i:]), id)
+			if !reported[id] {
+				reported[id] = true
+				c.add(s.List(id).Pos, "list %q follows its own selection through {sel.*} (%s); a list's source cannot depend on itself", id, strings.Join(cycle, " -> "))
+			}
+			return
+		}
+		state[id] = visiting
+		for _, d := range deps[id] {
+			if _, ok := deps[d]; ok {
+				visit(d, append(path, id))
+			}
+		}
+		state[id] = done
+	}
+	ids := make([]string, 0, len(deps))
+	for id := range deps {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	for _, id := range ids {
+		visit(id, nil)
+	}
 }

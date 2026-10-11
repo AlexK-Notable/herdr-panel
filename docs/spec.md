@@ -149,6 +149,39 @@ row_actions = [
 | `id_column` | string | The key that identifies a row, `"id"` by default. The selection follows the row with that id across refreshes. |
 | `empty` | string | Shown when there are no rows. |
 | `row_actions` | array of actions | Run against the selected row. They may use `{row.<key>}`. |
+| `id` | string | Names the list, so other sections can follow its selected row with `{sel.<id>.<key>}`. Letters, digits, `_` and `-`; unique. Only lists have one. |
+
+#### Following another list's selection
+
+A section can show something about the row selected in a list: give the
+list an `id`, and use `{sel.<id>.<key>}` in the other section's `source`
+(and its `title`, row actions or buttons).
+
+```toml
+[[section]]
+id = "plugins"
+kind = "list"
+source = ["./x", "plugins"]
+columns = ["name"]
+
+[[section]]
+title = "Keys for {sel.plugins.name}"
+kind = "list"
+source = ["./x", "keys", "{sel.plugins.id}"]
+columns = ["key", "action"]
+empty = "Select a plugin."
+```
+
+- The following section runs its source again whenever the selected row
+  changes, or its values change when the list refreshes. A selection moved
+  by hand rests 150 ms first, so arrowing past rows runs nothing for them.
+- While nothing is selected (an empty list, or a filter that hides every
+  row), the following section runs nothing and shows its `empty` text; it is
+  not an error. In a title, a value without a selection shows as `…`.
+- `{sel.<id>.<key>}` reads any key of the selected row's JSON, shown in a
+  column or not; a key the row lacks is empty.
+- A list cannot follow its own selection, directly or through other lists:
+  that is a spec error.
 
 ### `buttons`
 
@@ -189,7 +222,16 @@ the `herdr-panel` binary has no views to supply, so `herdr-panel run` and
 | `key` | string | none | A shortcut, named the way Bubble Tea names keys: `r`, `R`, `?`, `ctrl+o`, `alt+x`, `f5`. A letter after `ctrl+` or `alt+` is lower case, and `shift+` never precedes a letter (write `R`, not `shift+r`). Shortcuts are unique in the panel. The reserved keys `? / q esc enter space tab shift+tab`, the arrows, `pgup pgdown home end delete backspace ctrl+c ctrl+s ctrl+r` cannot be used. The vim keys `h j k l` can: a shortcut on one of them wins, and the arrows still move. |
 | `confirm` | string | none | A question asked inside the panel first. It may use placeholders. |
 | `timeout_s` | integer | `10` | 1 to 3600. |
-| `after` | string | `"refresh"` | `refresh` reloads lists and stores, `close` closes the panel, `none` does nothing. |
+| `after` | string | `"refresh"` | `refresh` reloads lists and stores, `close` closes the panel once the command succeeds, `none` does nothing. `close_then_run` closes the panel **first** and runs the command once the panel has exited (see below). |
+
+**`after = "close_then_run"`** is for an action that opens something the
+open panel is in the way of, such as another herdr popup (herdr allows one
+at a time). The panel closes at once; the command runs, detached, after the
+panel's process has exited, so it outlives the popup. Its result is never
+shown, and `timeout_s` does not apply: a command that can fail should report
+the failure itself (a herdr notification, say). The panel refuses it while
+edits are unsaved. In herdr the popup may still be closing when the command
+starts, so a command that opens another popup should retry on `ui_busy`.
 
 ## Commands
 
@@ -220,14 +262,17 @@ A command is an array, `["program", "arg", ...]`, or a table,
 
 ## Placeholders
 
-Placeholders work in three places only: **store paths**, **commands**
-(`run`, `source`, `apply`, `test`) and **`confirm`** questions. Everywhere
-else (titles, labels, help, `text`, `empty`) a `{` is just a brace.
+Placeholders work in four places only: **store paths**, **commands**
+(`run`, `source`, `apply`, `test`), **`confirm`** questions and **section
+titles** (`{sel.*}`, `{ctx.*}` and `{env.*}` only). Everywhere else (labels,
+help, `text`, `empty`) a `{` is just a brace; in a section title, write `{{`
+for one.
 
 | Placeholder | Value | Where it can be used |
 |---|---|---|
 | `{row.<key>}` | The selected row's value | row actions and their `confirm` |
 | `{field.<id>}` | A field's current value, as stored | commands and `confirm`; not store paths; never a `secret` field |
+| `{sel.<list>.<key>}` | A key of the row selected in list `<list>` | sources, actions, `confirm` and section titles; see [following a selection](#following-another-lists-selection) |
 | `{ctx.<name>}` | `workspace_id`, `tab_id`, `pane_id`, `cwd`, `plugin_id`, `config_dir`, `state_dir`, `spec_dir` | all three places |
 | `{env.NAME}` | An environment variable | all three places |
 | `{env.NAME:-default}` | The variable, or `default` when it is unset or empty | all three places |
@@ -235,7 +280,8 @@ else (titles, labels, help, `text`, `empty`) a `{` is just a brace.
 `{{` and `}}` are literal braces, also inside a `:-default`. A placeholder
 without a value is an error at run time. A placeholder that cannot have a
 value is an error when the spec is validated: an unknown field id, an
-unknown `ctx` name, or `row` outside a row action. So is `{field.<id>}` of a
+unknown `ctx` name, `row` outside a row action, or `sel` naming no list. A
+`{row.*}`, `{field.*}` or `{sel.*}` placeholder can never be the program. So is `{field.<id>}` of a
 `secret` field: a secret never reaches a command line, an environment
 variable or the screen. A `test` command reads the secret from the store
 itself.

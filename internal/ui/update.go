@@ -83,7 +83,7 @@ func (m *Model) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 	if m.pinKey() != prevPin {
 		m.freeScroll = false // the focus moved: show it again
 	}
-	return m, tea.Batch(cmd, m.viewFocusChange(prev))
+	return m, tea.Batch(cmd, m.viewFocusChange(prev), m.followSelections(msg))
 }
 
 // pinKey names what the body scroll follows: the focus, and in a list the
@@ -132,6 +132,8 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return m.onText(msg)
 	case tickMsg:
 		return m.onTick(msg)
+	case selMsg:
+		return m.onSel(msg)
 	case tea.PasteMsg:
 		if name, v := m.focusedView(); v != nil && m.dialog == nil && m.crash == nil {
 			return m.toView(name, msg)

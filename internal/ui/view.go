@@ -306,7 +306,7 @@ func (m *Model) bodyLines(w int) []line {
 			out = append(out, nil)
 		}
 		if sec.Title != "" {
-			out = append(out, line{plain(" " + m.theme.Section.Render(sec.Title))})
+			out = append(out, line{plain(" " + m.theme.Section.Render(sec.ExpandTitle(m.values(nil))))})
 		}
 		switch sec.Kind {
 		case spec.FieldsSection:
@@ -439,7 +439,7 @@ func (m *Model) listLines(i, w int) []line {
 		head.WriteString(pad(c.Title, widths[j]))
 		head.WriteString(" ")
 	}
-	out := []line{{plain(" " + m.marker(id)), seg{text: th.Muted.Render(head.String()), id: id, kind: "list", label: ls.sec.Title}}}
+	out := []line{{plain(" " + m.marker(id)), seg{text: th.Muted.Render(head.String()), id: id, kind: "list", label: ls.sec.ExpandTitle(m.values(nil))}}}
 	if ls.filter != nil {
 		text := ls.filter.String()
 		if m.filterActive && m.focus == id {

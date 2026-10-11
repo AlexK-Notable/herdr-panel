@@ -30,6 +30,11 @@ type Request struct {
 	Env     []string // added to the inherited environment, KEY=value
 	Dir     string
 	Timeout time.Duration
+	// AfterExit starts the command detached, in a session of its own, once
+	// this process has exited, and returns at once. Nothing of its result is
+	// seen; Timeout does not apply. It is for an action that must run after
+	// the panel has closed.
+	AfterExit bool
 }
 
 // Result is what happened.
@@ -62,6 +67,11 @@ func (Exec) Run(ctx context.Context, req Request) Result {
 	start := time.Now()
 	if len(req.Argv) == 0 || req.Argv[0] == "" {
 		return Result{ExitCode: -1, Err: errors.New("no program to run")}
+	}
+	if req.AfterExit {
+		res := Result{Err: startAfterExit(req), Duration: time.Since(start)}
+		Interpret(&res)
+		return res
 	}
 	timeout := req.Timeout
 	if timeout <= 0 {

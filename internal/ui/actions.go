@@ -47,6 +47,9 @@ func (m *Model) execAction(id string, a *spec.Action, row map[string]string) tea
 		m.setStatus(statusErr, "%s: %v", a.Label, err)
 		return nil
 	}
+	if a.After == spec.AfterCloseThenRun {
+		return m.closeThenRun(a, argv, row)
+	}
 	m.busy[id] = true
 	m.setStatus(statusInfo, "%s…", a.Label)
 	req := run.Request{Argv: argv, Env: m.commandEnv(row), Dir: m.spec.Dir, Timeout: a.Run.Timeout}
@@ -73,7 +76,7 @@ func (m *Model) onActionDone(msg actionDoneMsg) tea.Cmd {
 		return m.Quit()
 	case spec.AfterNothing:
 		return nil
-	case spec.AfterRefresh:
+	case spec.AfterRefresh, spec.AfterCloseThenRun: // the latter never gets here: it quits before running
 	}
 	return m.refreshAll()
 }
@@ -97,4 +100,19 @@ func lowerFirst(s string) string {
 		r[0] += 'a' - 'A'
 	}
 	return string(r)
+}
+
+// closeThenRun closes the panel and has the command run once it has exited.
+// It refuses while edits are unsaved: closing would drop them unasked.
+func (m *Model) closeThenRun(a *spec.Action, argv []string, row map[string]string) tea.Cmd {
+	if n := m.Dirty(); n > 0 {
+		m.setStatus(statusErr, "%s closes the panel: save or revert your %d unsaved edit(s) first", a.Label, n)
+		return nil
+	}
+	req := run.Request{Argv: argv, Env: m.commandEnv(row), Dir: m.spec.Dir, AfterExit: true}
+	if res := m.runner.Run(m.ctx, req); !res.OK {
+		m.setStatus(statusErr, "✗ %s: %s", a.Label, res.Message)
+		return nil
+	}
+	return m.Quit()
 }

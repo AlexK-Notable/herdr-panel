@@ -25,7 +25,8 @@
                   "enum": [
                     "refresh",
                     "close",
-                    "none"
+                    "none",
+                    "close_then_run"
                   ]
                 },
                 "confirm": {
@@ -235,6 +236,10 @@
             },
             "type": "array"
           },
+          "id": {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_-]*$",
+            "type": "string"
+          },
           "id_column": {
             "type": "string"
           },
@@ -255,7 +260,8 @@
                   "enum": [
                     "refresh",
                     "close",
-                    "none"
+                    "none",
+                    "close_then_run"
                   ]
                 },
                 "confirm": {

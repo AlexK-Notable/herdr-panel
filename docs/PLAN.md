@@ -749,3 +749,18 @@ Each entry says what changed from the plan above, and why.
   `config.env` values (marked as set, not default), the five live workspaces with who named each,
   and the row actions. An empty overrides section leaves a blank band under the title; cosmetic,
   noted for a later release.
+- **v0.2.0, for the plugin manager** (the user, 2026-10-11: a panel listing installed plugins that
+  shows a plugin's keybindings when you click into it; plan znote `IwFC8wOfGSHXCvaof4RJI`).
+  - **Following a selection** (`id` on lists, `{sel.<list>.<key>}`): the click-through the manager
+    needs, built into the library because any master/detail panel needs it. A following section
+    runs nothing while nothing is selected (that is not a failure), and lists may not follow each
+    other in a circle. Section titles became templates so a detail can be headed by the selection;
+    `Section.Title` stays a string, so the Go API does not break, but a literal brace in a title
+    now needs doubling (listed as breaking).
+  - **The deferred `after_close` runner came back**: its trigger fired, since the manager's "run
+    action" often opens another popup, which `ui_busy` refuses while the manager's is open. It is
+    `after = "close_then_run"`. The panel starts a fixed `sh` waiter in a session of its own
+    (`while kill -0 <panel pid>; do sleep 0.05; done; exec "$@"`), with the command as arguments,
+    never as script text, and quits. A re-exec of `herdr-panel` was considered and rejected: a Go
+    program embedding the panel is not `herdr-panel`. The `ui_busy` retry belongs to the command
+    (the manager's helper), since the library cannot know herdr's errors.

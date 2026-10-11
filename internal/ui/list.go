@@ -36,6 +36,8 @@ type listState struct {
 	sel      int
 	offset   int
 	filter   *editor
+	followed string // the selection the sections following this list last saw
+	selGen   int    // bumped when it moves; a rested selMsg must match
 }
 
 type textState struct {
@@ -73,6 +75,14 @@ type tickMsg struct {
 func (m *Model) refreshList(i int) tea.Cmd {
 	ls := m.lists[i]
 	if ls == nil || ls.sec.Source == nil {
+		return nil
+	}
+	if !m.selReady(ls.sec.Source) {
+		// Nothing selected to follow: show the empty text, run nothing, and
+		// drop any answer still coming for the previous selection.
+		ls.rows, ls.loaded, ls.err, ls.loading, ls.stale, ls.failures = nil, true, "", false, false, 0
+		ls.seq++
+		ls.reselect()
 		return nil
 	}
 	if ls.loading {
@@ -213,6 +223,11 @@ func (m *Model) onTick(msg tickMsg) tea.Cmd {
 func (m *Model) refreshText(i int) tea.Cmd {
 	ts := m.texts[i]
 	if ts == nil {
+		return nil
+	}
+	if !m.selReady(ts.sec.Source) {
+		ts.text, ts.loaded, ts.err, ts.loading, ts.stale, ts.failures = "", true, "", false, false, 0
+		ts.seq++
 		return nil
 	}
 	if ts.loading {

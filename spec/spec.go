@@ -8,7 +8,10 @@
 // A spec runs commands, so a spec is code: see docs/security.md.
 package spec
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // Version is the spec format version this package reads.
 const Version = 1
@@ -156,8 +159,13 @@ const (
 
 // Section is one titled part of the panel.
 type Section struct {
+	// Title may use {sel.*}, {ctx.*} and {env.*} placeholders (see
+	// ExpandTitle); {{ and }} are literal braces.
 	Title string
 	Kind  SectionKind
+	// ID names a list section, so other sections can follow its selected row
+	// with {sel.<id>.<column>}. Only lists have one; it may be empty.
+	ID string
 
 	Fields []*Field // FieldsSection
 
@@ -192,6 +200,11 @@ const (
 	AfterRefresh After = "refresh" // reload lists and stores
 	AfterClose   After = "close"   // close the panel
 	AfterNothing After = "none"
+	// AfterCloseThenRun closes the panel first and then runs the command,
+	// detached, once the panel has exited; its result is never shown. It is
+	// for an action that opens something the open panel would be in the way
+	// of, such as another popup.
+	AfterCloseThenRun After = "close_then_run"
 )
 
 // Action is a button or a row action.
@@ -213,3 +226,54 @@ type Command struct {
 
 // DefaultTimeout bounds a command whose spec gives none.
 const DefaultTimeout = 10 * time.Second
+
+// ExpandTitle is the section's title with its placeholders filled in. A value
+// that is missing, such as {sel.*} while nothing is selected, shows as "…";
+// a title that is not a valid template shows as written.
+func (s *Section) ExpandTitle(v Values) string {
+	t, err := ParseTemplate(s.Title)
+	if err != nil {
+		return s.Title
+	}
+	out, err := t.Expand(ValuesFunc(func(ns, name string) (string, bool) {
+		if v != nil {
+			if val, ok := v.Lookup(ns, name); ok {
+				return val, true
+			}
+		}
+		return "…", true
+	}))
+	if err != nil {
+		return s.Title
+	}
+	return out
+}
+
+// List returns the list section with the given id, or nil.
+func (s *Spec) List(id string) *Section {
+	for _, sec := range s.Sections {
+		if sec.Kind == ListSection && sec.ID != "" && sec.ID == id {
+			return sec
+		}
+	}
+	return nil
+}
+
+// SelLists are the list ids a command's arguments follow with {sel.*}.
+func (c *Command) SelLists() []string {
+	if c == nil {
+		return nil
+	}
+	var out []string
+	for _, a := range c.Argv {
+		for _, ph := range a.Placeholders() {
+			if ph[0] != NSSel {
+				continue
+			}
+			if l, _ := SelRef(ph[1]); !slices.Contains(out, l) {
+				out = append(out, l)
+			}
+		}
+	}
+	return out
+}

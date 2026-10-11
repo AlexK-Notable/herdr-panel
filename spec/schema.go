@@ -33,7 +33,7 @@ func JSONSchema() []byte {
 		"run":       argv,
 		"timeout_s": jsObj("type", "integer", "minimum", 1, "maximum", 3600),
 		"confirm":   str,
-		"after":     jsObj("enum", []any{"refresh", "close", "none"}),
+		"after":     jsObj("enum", []any{"refresh", "close", "none", "close_then_run"}),
 	}, "label", "run")
 	field := closed(map[string]any{
 		"key":         nonEmpty,
@@ -59,6 +59,7 @@ func JSONSchema() []byte {
 	}, "key")})
 	section := closed(map[string]any{
 		"title":       str,
+		"id":          jsObj("type", "string", "pattern", "^[A-Za-z_][A-Za-z0-9_-]*$"),
 		"kind":        jsObj("enum", []any{"fields", "list", "buttons", "text", "view"}),
 		"fields":      jsObj("type", "array", "items", field),
 		"source":      source,

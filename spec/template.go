@@ -9,8 +9,8 @@ import (
 )
 
 // Template is a string with placeholders: {row.<column>}, {field.<id>},
-// {ctx.<name>}, {env.<NAME>} and {env.<NAME>:-default}. {{ and }} stand for
-// literal braces.
+// {sel.<list>.<column>}, {ctx.<name>}, {env.<NAME>} and {env.<NAME>:-default}.
+// {{ and }} stand for literal braces.
 //
 // A template always expands to exactly one string. In an argument vector each
 // element expands on its own, so a value with spaces or quotes stays one
@@ -34,7 +34,15 @@ const (
 	NSField = "field"
 	NSCtx   = "ctx"
 	NSEnv   = "env"
+	// NSSel reads the selected row of another list: {sel.<list id>.<column>}.
+	NSSel = "sel"
 )
+
+// SelRef splits the name of a {sel.<list>.<column>} placeholder.
+func SelRef(name string) (list, column string) {
+	list, column, _ = strings.Cut(name, ".")
+	return list, column
+}
 
 // CtxNames are the names {ctx.*} accepts.
 var CtxNames = []string{
@@ -142,6 +150,13 @@ func parsePlaceholder(body string) (part, error) {
 		if name, def, found := strings.Cut(rest, ":-"); found {
 			p.name, p.def, p.hasDef = name, def, true
 		}
+	}
+	if ns == NSSel {
+		list, column, ok := strings.Cut(rest, ".")
+		if !ok || !validName(list, false) || !validName(column, false) {
+			return part{}, fmt.Errorf("placeholder {%s} must be {sel.<list id>.<column>}", body)
+		}
+		return p, nil
 	}
 	if !validName(p.name, ns == NSEnv) {
 		return part{}, fmt.Errorf("placeholder {%s} has an invalid name %q", body, p.name)

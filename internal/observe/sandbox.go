@@ -50,6 +50,9 @@ type Call struct {
 	// Cancelled means the panel's context had ended, so the real runner
 	// would have refused to start the command.
 	Cancelled bool `json:"cancelled,omitempty"`
+	// AfterExit means the command was to run once the panel had closed
+	// (after = "close_then_run").
+	AfterExit bool `json:"after_exit,omitempty"`
 }
 
 // Sandbox runs nothing: it records each command and answers from stubs, or
@@ -63,7 +66,7 @@ type Sandbox struct {
 // Run implements run.Runner.
 func (s *Sandbox) Run(ctx context.Context, req run.Request) run.Result {
 	s.mu.Lock()
-	s.calls = append(s.calls, Call{Argv: append([]string(nil), req.Argv...), Env: panelEnv(req.Env), Cancelled: ctx.Err() != nil})
+	s.calls = append(s.calls, Call{Argv: append([]string(nil), req.Argv...), Env: panelEnv(req.Env), Cancelled: ctx.Err() != nil, AfterExit: req.AfterExit})
 	s.mu.Unlock()
 	if err := ctx.Err(); err != nil {
 		// As the real runner: a cancelled panel runs nothing.
