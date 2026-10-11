@@ -23,8 +23,8 @@ import (
 // It needs network access, and while the repository is private, GOPRIVATE in
 // the environment: the isolated world moves XDG_CONFIG_HOME, so a GOPRIVATE
 // set with `go env -w` is not seen. Go's build cache moves with
-// XDG_CACHE_HOME too, so each install builds cold, as a first install does;
-// run it with -timeout 30m.
+// XDG_CACHE_HOME too, so each install builds cold, as a first install does
+// (`make integration` allows 30 minutes).
 func TestInstallBuildsFromTag(t *testing.T) {
 	tag := os.Getenv("HERDR_PANEL_BUILD_TAG")
 	if tag == "" {
