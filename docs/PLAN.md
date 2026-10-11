@@ -292,8 +292,8 @@ it starts.
 |---|---|
 | Keys | herdr answers the kitty query with flags=1. Every test key decoded correctly, and so did paste. It took 159 ms from the harness's write of a lone Esc to Bubble Tea's decode; where that time goes is not measured. |
 | Size | The socket's size beats the manifest's: 70×20 gives 67×18, and the manifest's 60×16 gives 57×14. The CLI uses the manifest. |
-| First frame | The first `View` came 0 ms after process start and about 4 ms after the open call. |
-| Close (`popup.close`) | Only SIGHUP was needed: the handler quit at 0 ms and `Run` returned nil. The plain child died. The `Setsid` child survived, and so did one from every other popup run. |
+| First `View` call | It came 0 ms after process start and about 4 ms after the open call. This is the call, **not a painted frame**; M3's benchmark measures the frame. |
+| Close (`popup.close`) | The 250 ms SIGTERM/SIGKILL cadence was not observed and rests on source alone; M3's teardown test measures it with SIGHUP ignored. Only SIGHUP was needed: the handler quit at 0 ms and `Run` returned nil. The plain child died. The `Setsid` child survived, and so did one from every other popup run. |
 | Panic, Bubble Tea's own recovery | The popup vanished instantly, and the stack went with it. |
 | Panic, hold screen after `Run` | It stayed readable until a key, for panics in Update and in a Cmd alike. |
 | `[[build]]` | A failing build was refused ("Plugin was not installed"). The good build produced `bin/slice`. Install takes only GitHub `owner/repo[/subdir]`. A private repo needs gh's login, which isolation hid; the fix is `GH_CONFIG_DIR` for the install only. |
