@@ -1,0 +1,65 @@
+# Settings for herdr-file-viewer (github.com/smarzban/herdr-file-viewer, MIT),
+# a plugin with no settings editor of its own. Its config.toml is TOML with
+# top-level keys plus a [keys] table, which the panel leaves alone. Ranges,
+# defaults and types are the viewer's own (src/config.rs): a value of the
+# wrong type makes it ignore the whole file, so every field is typed.
+spec = 1
+title = "File viewer"
+size = { width = "70%", height = "80%" }
+
+[stores.config]
+kind = "tomlfile"
+path = "{env.HERDR_PLUGIN_CONFIG_DIR}/config.toml"
+
+[[section]]
+kind = "text"
+text = "Changes take effect the next time the viewer opens."
+
+[[section]]
+title = "Startup"
+fields = [
+  { key = "hide_dotfiles", type = "bool", label = "Hide dotfiles", default = false },
+  { key = "show_ignored", type = "bool", label = "Show ignored files", default = false },
+  { key = "compact_dirs", type = "bool", label = "Compact directories", default = false,
+    help = "Draw a chain of single-child directories as one row." },
+  { key = "confirm_discard", type = "bool", label = "Confirm discarding notes", default = true },
+  { key = "expand_changed", type = "bool", label = "Open changed folders", default = false,
+    help = "Expand the folders above files with uncommitted changes." },
+  { key = "changed_only", type = "bool", label = "Changed files only", default = false },
+  { key = "changed_file_view", type = "choice", label = "Changed files open as", default = "diff",
+    choices = [ { value = "diff", label = "diff" }, { value = "content", label = "content" } ] },
+  { key = "baseline", type = "choice", label = "Diff against",
+    choices = [ { value = "base", label = "base branch" }, { value = "head", label = "HEAD" } ],
+    help = "Unset: the base branch on a feature branch, HEAD on the default one." },
+  { key = "update_check", type = "bool", label = "Check for updates", default = true,
+    help = "Off: no remote requests at all." },
+  { key = "scroll_lines", type = "int", label = "Wheel step", min = 1, max = 10, default = 3,
+    help = "Lines the mouse wheel scrolls per event." },
+]
+
+[[section]]
+title = "Layout"
+fields = [
+  { key = "tree_position", type = "choice", label = "Tree side", default = "left",
+    choices = [ { value = "left", label = "left" }, { value = "right", label = "right" } ] },
+  { key = "open_direction", type = "choice", label = "Open beside / below", default = "right",
+    choices = [ { value = "right", label = "right" }, { value = "down", label = "down" } ] },
+  { key = "tree_width", type = "int", label = "Tree width %", min = 20, max = 80, default = 30 },
+  { key = "tree_max_cols", type = "int", label = "Tree width cap", min = 10, max = 1000, default = 30,
+    help = "Columns; the smaller of this and the width % wins." },
+  { key = "preview_max_lines", type = "int", label = "Preview lines", min = 100, max = 100000, default = 10000 },
+  { key = "preview_max_kib", type = "int", label = "Preview KiB", min = 64, max = 65536, default = 1024 },
+]
+
+[[section]]
+title = "Programs"
+fields = [
+  { key = "editor", type = "text", label = "Editor", placeholder = "$EDITOR",
+    help = "Opened by e; the file's path is added at the end." },
+  { key = "open", type = "text", label = "Open with", placeholder = "xdg-open" },
+  { key = "reveal", type = "text", label = "Reveal with", placeholder = "system default" },
+  { key = "markdown", type = "text", label = "Markdown", placeholder = "glow -s dark -w 0 -",
+    help = "Reads the file on stdin." },
+  { key = "diff", type = "text", label = "Diff", placeholder = "delta" },
+  { key = "syntax", type = "text", label = "Syntax", placeholder = "bat … {name} -" },
+]

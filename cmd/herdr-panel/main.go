@@ -263,7 +263,7 @@ func sandboxStores(s *spec.Spec, ctxValues map[string]string, tmp string) (map[s
 	})
 	out := map[string]store.Store{}
 	for _, st := range s.Stores {
-		dst := filepath.Join(tmp, st.Name+".env")
+		dst := filepath.Join(tmp, st.Name+ui.StoreExt(st.Kind))
 		if p, err := spec.ExpandPath(st.Path, vals, s.Dir); err == nil {
 			if data, err := os.ReadFile(p); err == nil { //nolint:gosec // G304: the spec's own store file
 				if err := os.WriteFile(dst, data, 0o600); err != nil { //nolint:gosec // G703: dst is in our own temp dir
@@ -271,7 +271,7 @@ func sandboxStores(s *spec.Spec, ctxValues map[string]string, tmp string) (map[s
 				}
 			}
 		}
-		out[st.Name] = &store.EnvFile{Path: dst, Create: st.Create} // a missing file stays missing, as it would for real
+		out[st.Name] = ui.NewStore(s, st, dst) // a missing file stays missing, as it would for real
 	}
 	return out, nil
 }

@@ -28,20 +28,41 @@ ignored.
 
 ## Stores
 
-A store is where field values live. Version 1 has one kind, `envfile`: a
-`KEY=value` file. Comments, blank lines, key order, `export` prefixes and
-quoting are kept exactly. Only the edited value changes on disk.
+A store is where field values live. Two kinds:
+
+- **`envfile`**: a `KEY=value` file. Comments, blank lines, key order,
+  `export` prefixes and quoting are kept exactly.
+- **`tomlfile`**: a TOML file whose **top-level** keys hold the fields.
+  Comments, tables, key order and every other key are kept exactly; tables
+  are never edited.
+
+Either way, only the edited lines change on disk, and a save that would
+leave a file its program cannot parse is refused.
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `kind` | string | required | `"envfile"`. |
+| `kind` | string | required | `"envfile"` or `"tomlfile"`. |
 | `path` | string | required | May use `{env.*}` and `{ctx.*}`. A leading `~` is the home directory. A relative path is relative to the spec file's directory. |
 | `create` | boolean | `true` | Create the file (mode 0600) on first save when it does not exist. |
 | `apply` | command | none | Run after a save that changed this store, e.g. to restart the program that reads it. |
 
 A value that is not in the file shows its field's `default`. A key written
-commented out (`#KEY=value`) is read as absent. On first save it becomes a
-real line in that place.
+commented out (`#KEY=value`, `#key = value`) is read as absent. On first
+save it becomes a real line in that place, so a setting lands where the
+file documents it.
+
+In a `tomlfile`:
+
+- A field is written as the TOML type its program reads: a `bool` as
+  `true`/`false`, an `int` or `duration_s` as an integer, everything else
+  as a string. A `bool`'s `true_value`/`false_value` do not apply.
+- A key with no commented default goes after the last top-level key, or,
+  if there is none, above the first table header, **commented-out headers
+  included**: uncommenting `#[keys]` later must not pull the new key into
+  that table.
+- A value spanning several lines (a multi-line string or array) is left
+  for you to edit by hand, and so is a key that names a table.
+- A comment after a value (`n = 3 # why`) is kept.
 
 ## Sections
 
@@ -65,7 +86,7 @@ fields = [
 
 | Key | Type | Applies to | Meaning |
 |---|---|---|---|
-| `key` | string | all | The key in the store. For an env file it is letters, digits and `_`, and does not start with a digit. |
+| `key` | string | all | The key in the store. For an env file it is letters, digits and `_`, and does not start with a digit. For a TOML file it is a bare top-level key: letters, digits, `_` and `-`. |
 | `type` | string | all | `bool`, `choice`, `int`, `duration_s`, `text` or `secret`. |
 | `id` | string | all | Names the field in `{field.<id>}`. Defaults to `key`, and must be unique in the spec. |
 | `store` | string | all | Needed only when the spec has more than one store. |
@@ -90,6 +111,9 @@ The types:
   because the spec file would then hold the secret.
 - **A value on disk that is not one of a choice field's `choices`** is shown
   as `custom: <value>` and left untouched unless you change it.
+- **A choice field with no `default`** can also be left out of the file, so
+  that its program decides. It shows as `not set`, and its picker offers
+  *not set* first, which removes the key.
 
 ### `list`
 

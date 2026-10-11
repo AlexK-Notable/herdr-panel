@@ -670,3 +670,21 @@ Each entry says what changed from the plan above, and why.
     files before and after.
   - **The fork is public; herdr-panel is private.** Its branch names herdr-panel (README link,
     Makefile), so it is committed locally and not pushed until the user decides.
+- **M7, the second consumer: herdr-file-viewer** (smarzban, MIT, Rust), which has "no in-app
+  settings editor" by its own docs. A local clone (`~/repos/herdr-file-viewer`, branch
+  `feat/settings-panel`), not a GitHub fork: forking is outward-facing and waits for the user.
+  - **It brought back the deferred `tomlfile` store.** Its config is TOML: top-level scalars plus
+    a `[keys]` table, with every setting documented as a commented default. Edits are line-based
+    (comments, tables and order byte-identical); keys are typed by field (an int must be a TOML
+    integer: the viewer drops the whole file on a wrong type, per its `src/config.rs`). A new key
+    goes above the first header *including commented-out ones*, or uncommenting `#[keys]` would
+    capture it. Fuzzing (`FuzzTOMLSet`, 62M inputs clean after the fixes) found three real bugs:
+    invalid UTF-8 written as U+FFFD (now refused), a key naming a table (now refused by the
+    re-parse, file untouched), and mixed line endings normalised (lines now keep their own `\r`).
+  - **It forced one spec change: a choice with no default can be "not set".** The viewer's
+    `baseline` means "context-smart" when absent; a picker could not get back to that state. Now a
+    choice without a default shows `not set`, and its picker and ←/→ include it.
+  - **Spec v1 and the Go API are freeze candidates** in the plan's sense: two real panels, one by
+    someone else, work without special cases. Both consumer tests are in `integration/`.
+  - Store construction is one function (`ui.NewStore`) shared by the panel, paneltest and
+    `observe --sandbox`, so the three cannot disagree on a store's kind.

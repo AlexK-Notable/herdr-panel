@@ -30,6 +30,7 @@ import (
 	"github.com/AlexK-Notable/herdr-panel/internal/bridge"
 	"github.com/AlexK-Notable/herdr-panel/internal/observe"
 	"github.com/AlexK-Notable/herdr-panel/internal/store"
+	"github.com/AlexK-Notable/herdr-panel/internal/ui"
 	"github.com/AlexK-Notable/herdr-panel/panel"
 	"github.com/AlexK-Notable/herdr-panel/spec"
 )
@@ -116,7 +117,7 @@ func New(tb testing.TB, s *spec.Spec, cfg Config) *Panel {
 	for _, st := range s.Stores {
 		path, ok := cfg.Stores[st.Name]
 		if !ok {
-			path = filepath.Join(dir, st.Name+".env")
+			path = filepath.Join(dir, st.Name+ui.StoreExt(st.Kind))
 			if !st.Create {
 				if err := os.WriteFile(path, nil, 0o600); err != nil {
 					tb.Fatalf("paneltest: %v", err)
@@ -124,7 +125,7 @@ func New(tb testing.TB, s *spec.Spec, cfg Config) *Panel {
 			}
 		}
 		p.stores[st.Name] = path
-		uopts.Stores[st.Name] = &store.EnvFile{Path: path, Create: st.Create}
+		uopts.Stores[st.Name] = ui.NewStore(s, st, path)
 	}
 	w, h := cfg.Width, cfg.Height
 	if w == 0 {

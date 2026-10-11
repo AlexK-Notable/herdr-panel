@@ -174,3 +174,31 @@ func wheelAt(x, y int, up bool) tea.Msg {
 	}
 	return tea.MouseWheelMsg{X: x, Y: y, Button: b}
 }
+
+// A choice with no default can be left out of the file; "not set" is how
+// it gets back there.
+func TestChoiceWithoutDefaultCanBeUnset(t *testing.T) {
+	t.Parallel()
+	src := `spec = 1
+title = "P"
+[stores.c]
+kind = "envfile"
+path = "c.env"
+[[section]]
+fields = [ { key = "B", type = "choice", label = "Base", choices = ["base", "head"] } ]
+`
+	f := open(t, src, "B=head\n")
+	f.expectFrame("‹ head ›")
+	f.click("field:B")
+	f.expectFrame("not set", "base", "head")
+	f.click("option:0") // not set
+	f.expectFrame("‹ not set ›")
+	f.key("ctrl+s")
+	if got := f.fileText(); got != "" {
+		t.Fatalf("not set left %q in the file", got)
+	}
+	f.key("right") // not set → base
+	f.expectFrame("‹ base ›")
+	f.key("right", "right") // → head → not set
+	f.expectFrame("‹ not set ›")
+}

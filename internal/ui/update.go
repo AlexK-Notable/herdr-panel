@@ -496,6 +496,15 @@ func (m *Model) adjust(f *spec.Field, delta int) tea.Cmd {
 				i = j
 			}
 		}
+		if f.Default == "" {
+			// Not set is a stop of its own, before the first choice.
+			n := len(f.Choices) + 1
+			i = (i + 1 + delta + n) % n
+			if i == 0 {
+				return m.setField(f, "", true)
+			}
+			return m.setField(f, f.Choices[i-1].Value, false)
+		}
 		i = (i + delta + len(f.Choices)) % len(f.Choices)
 		return m.setField(f, f.Choices[i].Value, false)
 	case spec.Bool:

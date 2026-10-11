@@ -32,6 +32,11 @@ may break the spec or the Go API, and every such break is listed under
 - `herdr` package: the socket client, `Open` for popups and overlays, `ClosePopup`,
   `Notify`.
 
+- A `tomlfile` store: top-level keys of a TOML file, edited line by line,
+  typed by field, with comments and tables kept.
+- A choice with no `default` can be set back to "not set", removing its key.
+- `examples/file-viewer.toml`: settings for herdr-file-viewer.
+
 ### Breaking
 
 - `paneltest.Config.Options` is replaced by `Views`, `Theme`, `Context` and `Via`; the

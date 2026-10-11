@@ -77,8 +77,18 @@ type Size struct {
 // StoreKind names a store implementation.
 type StoreKind string
 
-// EnvFile is a KEY=value file: comments, order, quoting and `export` are kept.
-const EnvFile StoreKind = "envfile"
+// The store kinds.
+const (
+	// EnvFile is a KEY=value file: comments, order, quoting and `export`
+	// are kept.
+	EnvFile StoreKind = "envfile"
+	// TOMLFile is a TOML file whose top-level keys hold the fields: only
+	// edited lines change, so comments, tables and order are kept.
+	TOMLFile StoreKind = "tomlfile"
+)
+
+// StoreKinds are the kinds this version reads.
+var StoreKinds = []StoreKind{EnvFile, TOMLFile}
 
 // Store is where field values live.
 type Store struct {

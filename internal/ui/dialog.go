@@ -98,19 +98,36 @@ func (m *Model) chooseDialog(i int) tea.Cmd {
 
 func (m *Model) openPicker(f *spec.Field) {
 	cur, _ := m.fieldValue(f)
-	opts := make([]string, len(f.Choices))
+	// A choice with no default can also be left out of the file: the
+	// program then decides. "not set" comes first, and removes the key.
+	var opts []string
+	unsettable := f.Default == ""
+	if unsettable {
+		opts = append(opts, notSet)
+	}
 	sel := 0
-	for i, c := range f.Choices {
-		opts[i] = c.Label
+	for _, c := range f.Choices {
 		if c.Value == cur {
-			sel = i
+			sel = len(opts)
 		}
+		opts = append(opts, c.Label)
 	}
 	m.dialog = &dialog{
 		kind: dialogPicker, title: f.Label, options: opts, cursor: sel,
-		onChoose: func(i int) tea.Cmd { return m.setField(f, f.Choices[i].Value, false) },
+		onChoose: func(i int) tea.Cmd {
+			if unsettable {
+				if i == 0 {
+					return m.setField(f, "", true)
+				}
+				i--
+			}
+			return m.setField(f, f.Choices[i].Value, false)
+		},
 	}
 }
+
+// notSet names the value of a choice left out of the file.
+const notSet = "not set"
 
 func (m *Model) openConflict(name string) {
 	ss := m.stores[name]

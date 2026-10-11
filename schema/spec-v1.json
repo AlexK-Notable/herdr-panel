@@ -423,7 +423,8 @@
           },
           "kind": {
             "enum": [
-              "envfile"
+              "envfile",
+              "tomlfile"
             ]
           },
           "path": {

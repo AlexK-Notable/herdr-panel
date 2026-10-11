@@ -141,3 +141,10 @@ workspace list, and checks that the restarted plugin outlives the popup. It
 also redirects `HOME`: a plugin that falls back to `~/.config` would
 otherwise find, and edit, the real user's files. A digest of those files,
 taken before and after, proves they were not touched.
+
+`TestFileViewerSettingsPanel` does the same for a plugin written by someone
+else, herdr-file-viewer, with a settings panel added (`examples/file-viewer.toml`,
+a `tomlfile` store), when `HERDR_PANEL_FILEVIEWER_DIR` names that checkout
+with `bin/herdr-panel` built. It asks herdr for the plugin's config directory,
+seeds the viewer's documented all-commented config, saves a setting, and
+checks the file byte for byte.

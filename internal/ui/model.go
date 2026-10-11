@@ -137,7 +137,7 @@ func New(opts Options) *Model {
 			ss.loadErr = fmt.Errorf("store %s: path %s: %w", sd.Name, sd.Path, err)
 		} else {
 			ss.path = p
-			ss.st = &store.EnvFile{Path: p, Create: sd.Create}
+			ss.st = NewStore(m.spec, sd, p)
 		}
 		m.stores[sd.Name] = ss
 	}

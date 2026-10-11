@@ -106,7 +106,7 @@ func display(f *spec.Field, v string) string {
 			}
 		}
 		if v == "" {
-			return "‹ none ›"
+			return "‹ not set ›"
 		}
 		return "‹ custom: " + v + " ›"
 	case spec.Duration:

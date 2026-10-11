@@ -195,8 +195,8 @@ func decodeStore(name string, t *table, p Pos, c *collector) *Store {
 	st := &Store{Name: name, Pos: p, Create: true}
 	if k, kp := o.required("kind"); k != "" {
 		st.Kind = StoreKind(k)
-		if st.Kind != EnvFile {
-			c.add(kp, "store kind %q is not supported; this version has %q (json and toml stores are planned)", k, EnvFile)
+		if !slices.Contains(StoreKinds, st.Kind) {
+			c.add(kp, "store kind %q is not supported; this version has %q", k, StoreKinds)
 		}
 	}
 	if path, pp := o.required("path"); path != "" {

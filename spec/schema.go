@@ -72,7 +72,7 @@ func JSONSchema() []byte {
 		"view":        nonEmpty,
 	})
 	store := closed(map[string]any{
-		"kind":   jsObj("enum", []any{"envfile"}),
+		"kind":   jsObj("enum", []any{"envfile", "tomlfile"}),
 		"path":   nonEmpty,
 		"create": boolean,
 		"apply":  command,

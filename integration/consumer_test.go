@@ -113,12 +113,17 @@ func userFiles(t *testing.T) [32]byte {
 	if err != nil {
 		t.Fatal(err)
 	}
+	dir := filepath.Join(home, ".config", "herdr-auto-title")
+	return digest(filepath.Join(dir, "config.env"), filepath.Join(dir, "manual-names.json"), filepath.Join(dir, "agent-names.json"))
+}
+
+// digest is a digest of files' contents; a missing file digests as empty.
+func digest(paths ...string) [32]byte {
 	h := sha256.New()
-	for _, f := range []string{"config.env", "manual-names.json", "agent-names.json"} {
-		data, err := os.ReadFile(filepath.Join(home, ".config", "herdr-auto-title", f))
-		h.Write([]byte(f + "\x00" + strconv.Itoa(len(data)) + "\x00"))
+	for _, p := range paths {
+		data, _ := os.ReadFile(p)
+		h.Write([]byte(p + "\x00" + strconv.Itoa(len(data)) + "\x00"))
 		h.Write(data)
-		_ = err // a missing file digests as empty
 	}
 	var sum [32]byte
 	copy(sum[:], h.Sum(nil))
@@ -161,4 +166,82 @@ func killPlugin(t *testing.T, dir, root string) {
 			_ = syscall.Kill(pid, syscall.SIGTERM)
 		}
 	}
+}
+
+// TestFileViewerSettingsPanel checks the second consumer, a plugin written
+// by someone else: herdr-file-viewer, with a settings panel added, linked
+// into an isolated herdr and opened through its own action. It runs only
+// when HERDR_PANEL_FILEVIEWER_DIR names that checkout with bin/herdr-panel
+// built (scripts/build-panel.sh); the viewer itself need not be built.
+func TestFileViewerSettingsPanel(t *testing.T) {
+	dir := os.Getenv("HERDR_PANEL_FILEVIEWER_DIR")
+	if dir == "" {
+		t.Skip("HERDR_PANEL_FILEVIEWER_DIR is not set")
+	}
+	for _, f := range []string{"bin/herdr-panel", "panel.toml"} {
+		if _, err := os.Stat(filepath.Join(dir, f)); err != nil {
+			t.Fatalf("%s: run scripts/build-panel.sh in the checkout first", err)
+		}
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	real := []string{
+		filepath.Join(home, ".config", "herdr", "plugins", "config", "herdr-file-viewer", "config.toml"),
+		filepath.Join(home, ".config", "herdr-file-viewer", "config.toml"),
+	}
+	before := digest(real...)
+	t.Cleanup(func() {
+		if digest(real...) != before {
+			t.Errorf("the real user's file-viewer config changed")
+		}
+	})
+
+	w := newWorld(t)
+	for i, kv := range w.env {
+		if strings.HasPrefix(kv, "HOME=") {
+			w.env[i] = "HOME=" + filepath.Join(w.root, "home")
+		}
+	}
+	w.start()
+	w.cli("plugin", "link", dir)
+	config := filepath.Join(strings.TrimSpace(w.cli("plugin", "config-dir", "herdr-file-viewer")), "config.toml")
+	if !strings.HasPrefix(config, w.root+"/") {
+		t.Fatalf("the plugin's config dir %s is outside the isolated root", config)
+	}
+	// The viewer's documented starting point: every setting commented out.
+	if err := os.MkdirAll(filepath.Dir(config), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	seed := "# settings\n#hide_dotfiles = false\n\n#[keys]\n#refresh = \"g\"\n"
+	if err := os.WriteFile(config, []byte(seed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	w.cli("plugin", "action", "invoke", "open-settings", "--plugin", "herdr-file-viewer")
+	w.waitText("File viewer")
+	w.waitText("Hide dotfiles")
+	x, y, ok := w.find("Hide dotfiles")
+	if !ok {
+		t.Fatalf("no Hide dotfiles field:\n%s", w.screen())
+	}
+	w.click(x, y)
+	w.send("\x13") // ctrl+s
+	want := "# settings\nhide_dotfiles = true\n\n#[keys]\n#refresh = \"g\"\n"
+	w.waitFor("the setting in "+config, func() bool {
+		data, _ := os.ReadFile(config)
+		return string(data) == want
+	})
+	w.waitText("✓ saved")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := herdr.NewClient(w.socket).ClosePopup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS == "linux" {
+		w.waitFor("the panel to exit", func() bool { return len(processes(dir+"/bin/herdr-panel", w.root)) == 0 })
+	}
+	noOrphans(t, filepath.Dir(config))
 }

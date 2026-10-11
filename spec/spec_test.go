@@ -94,6 +94,8 @@ func TestErrorPositions(t *testing.T) {
 		{"invalid toml", "spec = 1\ntitle = \"T\n", "2:11: invalid TOML"},
 		{"unsupported store kind", "spec = 1\ntitle = \"T\"\n[stores.c]\nkind = \"jsonfile\"\npath = \"x.json\"\n", `4:8: store kind "jsonfile" is not supported`},
 		{"save mode", "spec = 1\ntitle = \"T\"\nsave = \"never\"\n", `3:8: save must be`},
+		{"dotted toml key", "spec = 1\ntitle = \"T\"\n[stores.c]\nkind = \"tomlfile\"\npath = \"x.toml\"\n[[section]]\nfields = [ { key = \"a.b\", type = \"bool\" } ]\n", `7:12: TOML key "a.b" must be a bare top-level key`},
+		{"toml bool values", "spec = 1\ntitle = \"T\"\n[stores.c]\nkind = \"tomlfile\"\npath = \"x.toml\"\n[[section]]\nfields = [ { key = \"on\", type = \"bool\", true_value = \"yes\", false_value = \"no\" } ]\n", `7:12: a bool in a TOML file is true or false`},
 		{"requires syntax", "spec = 1\ntitle = \"T\"\nrequires = \"0.3\"\n", `3:12: requires must read`},
 		{"secret in a command", head + "[[section]]\nfields = [ { key = \"T\", type = \"secret\" } ]\n[[section]]\nkind = \"buttons\"\nbuttons = [ { label = \"Go\", run = [\"x\", \"--token={field.T}\"] } ]\n", `10:41: cannot use {field.T}: it is a secret`},
 		{"secret in a confirm", head + "[[section]]\nfields = [ { key = \"T\", type = \"secret\" } ]\n[[section]]\nkind = \"buttons\"\nbuttons = [ { label = \"Go\", run = [\"x\"], confirm = \"Send {field.T}?\" } ]\n", `10:52: cannot use {field.T}: it is a secret`},

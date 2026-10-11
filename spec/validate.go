@@ -132,8 +132,8 @@ func checkShapes(s *Spec, c *collector) {
 		}
 	}
 	for _, st := range s.Stores {
-		if st.Kind != EnvFile {
-			c.add(st.Pos, "store %q: kind %q is not supported; this version has %q", st.Name, st.Kind, EnvFile)
+		if !slices.Contains(StoreKinds, st.Kind) {
+			c.add(st.Pos, "store %q: kind %q is not supported; this version has %q", st.Name, st.Kind, StoreKinds)
 		}
 		if strings.TrimSpace(st.Path.Raw) == "" {
 			c.add(st.Pos, "store %q needs a path", st.Name)
@@ -345,6 +345,10 @@ func validateField(s *Spec, f *Field, c *collector) {
 		c.add(f.Pos, "field %q names store %q, which is not defined", f.Key, f.Store)
 	case st.Kind == EnvFile && f.Key != "" && !validName(f.Key, true):
 		c.add(f.Pos, "env-file key %q must be letters, digits and _, not starting with a digit", f.Key)
+	case st.Kind == TOMLFile && f.Key != "" && !bareTOMLKey(f.Key):
+		c.add(f.Pos, "TOML key %q must be a bare top-level key: letters, digits, _ and -", f.Key)
+	case st.Kind == TOMLFile && f.Type == Bool && (f.TrueValue != "true" || f.FalseValue != "false"):
+		c.add(f.Pos, "a bool in a TOML file is true or false; true_value/false_value do not apply")
 	}
 	if f.ID != "" && !validName(f.ID, false) {
 		c.add(f.Pos, "field id %q must be letters, digits, _ and -", f.ID)
@@ -546,4 +550,20 @@ func refusedByRequires(s *Spec) (string, bool) {
 		return fmt.Sprintf("this spec requires herdr-panel %s or newer; this is %s", want, host), true
 	}
 	return "", false
+}
+
+// bareTOMLKey reports whether k is a bare TOML key, the only kind a
+// tomlfile field edits: no dots, no quotes.
+func bareTOMLKey(k string) bool {
+	if k == "" {
+		return false
+	}
+	for _, r := range k {
+		switch {
+		case r == '_', r == '-', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		default:
+			return false
+		}
+	}
+	return true
 }
