@@ -40,29 +40,9 @@ removed), so it never touches a live session.
 
 ## License
 
-herdr-panel is licensed under the **Functional Source License, Version
-1.1, MIT Future License** — SPDX identifier `FSL-1.1-MIT`. Full text at
-[`LICENSE`](./LICENSE).
-
-It is **source-available, not open source**: the License Grant is
-conditioned on using the Software for a Permitted Purpose, and Permitted
-Purposes specifically include your internal use and access — so you may
-use, copy, modify, create derivative works of, and redistribute the
-Software, including for internal and commercial purposes such as
-embedding it in your own herdr plugin, subject to that condition. What
-the license bars is **Competing Use**: offering the Software, or
-something that substitutes for it or offers substantially similar
-functionality, to others as a commercial product or service.
-
-Each version of the Software converts to the plain MIT license,
-irrevocably, on the second anniversary of the date that version was made
-available — the conversion applies per version, not to the repository as
-a whole.
-
-This is a summary for orientation; the [`LICENSE`](./LICENSE) file is
-the actual grant and controls if the two ever disagree. Contributions
-require agreeing to the [`CLA`](./CLA.md); see
-[`CONTRIBUTING.md`](./CONTRIBUTING.md).
+herdr-panel is licensed under the [MIT License](./LICENSE). Embed it in
+your own plugins and tools, open or closed, commercial or not; keep the
+copyright notice. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) to contribute.
 
 ### Third-party software
 
