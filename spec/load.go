@@ -47,6 +47,9 @@ func Parse(data []byte, file, dir string) (*Spec, error) {
 	}
 	s := decode(root, c)
 	s.File, s.Dir = file, dir
+	if msg, refused := refusedByRequires(s); refused {
+		return nil, Errors{{File: file, Pos: s.requiresPos, Msg: msg}}
+	}
 	validate(s, c)
 	if len(c.errs) > 0 {
 		sortErrors(c.errs)
@@ -75,17 +78,27 @@ func IsSpecError(err error) bool {
 const modulePath = "github.com/AlexK-Notable/herdr-panel"
 
 // HostVersion is the version of this module in the running binary: "v0.3.1",
-// or "devel" for a build from a working tree.
+// or "devel" for a build from a working tree or one whose go.mod replaces
+// this module (a go.work or a replace directive builds from local source,
+// whatever version the requirement names).
 func HostVersion() string {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return "devel"
 	}
+	return versionIn(info)
+}
+
+func versionIn(info *debug.BuildInfo) string {
 	mods := append([]*debug.Module{&info.Main}, info.Deps...)
 	for _, m := range mods {
-		if m.Path == modulePath && m.Version != "" && m.Version != "(devel)" {
-			return m.Version
+		if m.Path != modulePath {
+			continue
 		}
+		if m.Replace != nil || m.Version == "" || m.Version == "(devel)" {
+			return "devel"
+		}
+		return m.Version
 	}
 	return "devel"
 }

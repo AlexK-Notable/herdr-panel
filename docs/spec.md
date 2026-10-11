@@ -107,7 +107,7 @@ row_actions = [
 |---|---|---|
 | `source` | command | Prints the rows as a JSON array of objects, or as `{"rows": [...]}`. Values are shown as text. |
 | `every_s` | integer | Re-run the source this often. It may also sit inside the `source` table. Without it the list refreshes only after an action. |
-| `columns` | array | Column keys, or `{ key, title, width }` tables. A column without a width shares the space left over. |
+| `columns` | array | **Required.** Column keys, or `{ key, title, width }` tables. A column without a width shares the space left over. |
 | `id_column` | string | The key that identifies a row, `"id"` by default. The selection follows the row with that id across refreshes. |
 | `empty` | string | Shown when there are no rows. |
 | `row_actions` | array of actions | Run against the selected row. They may use `{row.<key>}`. |
@@ -131,7 +131,7 @@ command's output, which `every_s` can refresh.
 |---|---|---|---|
 | `label` | string | required | The button's text. |
 | `run` | array | required | The command. |
-| `key` | string | none | A shortcut, named the way Bubble Tea names keys: `r`, `R`, `ctrl+o`, `f5`. Shortcuts are unique in the panel, and the reserved keys `? / q esc enter space tab shift+tab`, the arrows, `pgup pgdown home end ctrl+c ctrl+s ctrl+r` cannot be used. |
+| `key` | string | none | A shortcut, named the way Bubble Tea names keys: `r`, `R`, `?`, `ctrl+o`, `alt+x`, `f5`. A letter after `ctrl+` or `alt+` is lower case, and `shift+` never precedes a letter (write `R`, not `shift+r`). Shortcuts are unique in the panel. The reserved keys `? / q esc enter space tab shift+tab`, the arrows, `pgup pgdown home end delete backspace ctrl+c ctrl+s ctrl+r` cannot be used. The vim keys `h j k l` can: a shortcut on one of them wins, and the arrows still move. |
 | `confirm` | string | none | A question asked inside the panel first. It may use placeholders. |
 | `timeout_s` | integer | `10` | 1 to 3600. |
 | `after` | string | `"refresh"` | `refresh` reloads lists and stores, `close` closes the panel, `none` does nothing. |
@@ -147,10 +147,16 @@ A command is an array, `["program", "arg", ...]`, or a table,
   - a relative program (`./bin/x`, `bin/x`) is relative to the spec's
     directory;
   - a bare name (`herdr`) is looked up on `PATH`.
+- **The program cannot come from a row or a field**: `{row.*}` and
+  `{field.*}` are not allowed in the first element. Pass such values as
+  arguments.
 - **The environment** is inherited from the panel, including
   `HERDR_SOCKET_PATH`, so a command can call `herdr`. It also gets
   `PANEL_FIELD_<ID>` for every field (except secrets), `PANEL_ROW_<KEY>` for
-  the selected row, and `PANEL_VIA`.
+  the selected row, and `PANEL_VIA`. The name is the id or column key in
+  upper case, with anything other than a letter or digit turned into `_`:
+  field `max-len` becomes `PANEL_FIELD_MAX_LEN`. Two field ids that would
+  get the same name (`a-b` and `a_b`) are an error.
 - **Success**: exit status 0 is success, unless the command prints
   `{"ok": false, "message": "..."}`. The message is shown either way.
 - **Limits**: a timeout (`timeout_s`, 10 s by default) and an output cap
@@ -159,18 +165,25 @@ A command is an array, `["program", "arg", ...]`, or a table,
 
 ## Placeholders
 
+Placeholders work in three places only: **store paths**, **commands**
+(`run`, `source`, `apply`, `test`) and **`confirm`** questions. Everywhere
+else (titles, labels, help, `text`, `empty`) a `{` is just a brace.
+
 | Placeholder | Value | Where it can be used |
 |---|---|---|
 | `{row.<key>}` | The selected row's value | row actions and their `confirm` |
-| `{field.<id>}` | A field's current value, as stored | commands; not store paths |
-| `{ctx.<name>}` | `workspace_id`, `tab_id`, `pane_id`, `cwd`, `plugin_id`, `config_dir`, `state_dir`, `spec_dir` | everywhere |
-| `{env.NAME}` | An environment variable | everywhere |
-| `{env.NAME:-default}` | The variable, or `default` when it is unset or empty | everywhere |
+| `{field.<id>}` | A field's current value, as stored | commands and `confirm`; not store paths; never a `secret` field |
+| `{ctx.<name>}` | `workspace_id`, `tab_id`, `pane_id`, `cwd`, `plugin_id`, `config_dir`, `state_dir`, `spec_dir` | all three places |
+| `{env.NAME}` | An environment variable | all three places |
+| `{env.NAME:-default}` | The variable, or `default` when it is unset or empty | all three places |
 
-`{{` and `}}` are literal braces. A placeholder without a value is an error
-at run time. A placeholder that cannot have a value is an error when the
-spec is validated: an unknown field id, an unknown `ctx` name, or `row`
-outside a row action.
+`{{` and `}}` are literal braces, also inside a `:-default`. A placeholder
+without a value is an error at run time. A placeholder that cannot have a
+value is an error when the spec is validated: an unknown field id, an
+unknown `ctx` name, or `row` outside a row action. So is `{field.<id>}` of a
+`secret` field: a secret never reaches a command line, an environment
+variable or the screen. A `test` command reads the secret from the store
+itself.
 
 Where the `ctx` values come from:
 
@@ -201,6 +214,9 @@ What happens in some cases:
 
 Within spec version 1, keys are only ever added, never removed or changed
 in meaning. A spec that uses a newer key should say `requires = ">=X.Y"`, so
-an older host explains instead of reporting an unknown key. A change that
+an older host explains instead of reporting an unknown key: when `requires`
+refuses a spec, that refusal is the only error shown. A development build
+(one built from a working tree, a `go.work` or a `replace`) accepts every
+`requires`. A change that
 breaks existing specs is spec version 2. herdr-panel reads every version it
 knows.

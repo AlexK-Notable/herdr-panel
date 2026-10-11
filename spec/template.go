@@ -18,6 +18,7 @@ import (
 type Template struct {
 	Raw   string
 	parts []part
+	pos   Pos // where it was written, for errors
 }
 
 type part struct {
@@ -58,11 +59,11 @@ func ParseTemplate(s string) (Template, error) {
 		case c == '}':
 			return Template{}, fmt.Errorf("unmatched } at offset %d (write }} for a literal brace)", i)
 		case c == '{':
-			end := strings.IndexByte(s[i:], '}')
-			if end < 0 {
+			body, end, ok := placeholderBody(s, i)
+			if !ok {
 				return Template{}, fmt.Errorf("unclosed { at offset %d (write {{ for a literal brace)", i)
 			}
-			p, err := parsePlaceholder(s[i+1 : i+end])
+			p, err := parsePlaceholder(body)
 			if err != nil {
 				return Template{}, err
 			}
@@ -71,7 +72,7 @@ func ParseTemplate(s string) (Template, error) {
 				lit.Reset()
 			}
 			t.parts = append(t.parts, p)
-			i += end
+			i = end
 		default:
 			lit.WriteByte(c)
 		}
@@ -80,6 +81,46 @@ func ParseTemplate(s string) (Template, error) {
 		t.parts = append(t.parts, part{lit: lit.String()})
 	}
 	return t, nil
+}
+
+// placeholderBody reads the placeholder that opens at s[open]. Inside an
+// {env.X:-default}, {{ and }} are literal braces too. It returns the body
+// with those unescaped, and the index of the closing }.
+func placeholderBody(s string, open int) (string, int, bool) {
+	var b strings.Builder
+	inDefault := false
+	for j := open + 1; j < len(s); j++ {
+		switch {
+		case inDefault && j+1 < len(s) && s[j] == '}' && s[j+1] == '}':
+			b.WriteByte('}')
+			j++
+		case inDefault && j+1 < len(s) && s[j] == '{' && s[j+1] == '{':
+			b.WriteByte('{')
+			j++
+		case s[j] == '}':
+			return b.String(), j, true
+		default:
+			b.WriteByte(s[j])
+			if !inDefault && strings.HasSuffix(b.String(), ":-") {
+				inDefault = true
+			}
+		}
+	}
+	return "", 0, false
+}
+
+// parsed returns t with its parts, parsing Raw when t was written as a Go
+// literal, Template{Raw: "..."}.
+func (t Template) parsed() (Template, error) {
+	if t.parts != nil || t.Raw == "" {
+		return t, nil
+	}
+	p, err := ParseTemplate(t.Raw)
+	if err != nil {
+		return t, err
+	}
+	p.pos = t.pos
+	return p, nil
 }
 
 // MustTemplate parses s and panics on a syntax error; for specs built in Go.
@@ -126,6 +167,7 @@ func validName(s string, env bool) bool {
 
 // Placeholders returns the namespace and name of each placeholder.
 func (t Template) Placeholders() [][2]string {
+	t, _ = t.parsed()
 	var out [][2]string
 	for _, p := range t.parts {
 		if p.ns != "" {
@@ -158,6 +200,10 @@ var ErrMissing = errors.New("no value")
 
 // Expand fills in every placeholder.
 func (t Template) Expand(v Values) (string, error) {
+	t, err := t.parsed()
+	if err != nil {
+		return "", err
+	}
 	var b strings.Builder
 	for _, p := range t.parts {
 		if p.ns == "" {

@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -26,6 +28,38 @@ func TestRunExitCodes(t *testing.T) {
 		}
 		if !strings.Contains(stdout.String(), c.out) {
 			t.Errorf("run(%q) stdout = %q, want it to contain %q", c.args, stdout.String(), c.out)
+		}
+	}
+}
+
+func TestValidateExitCodes(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	good := filepath.Join(dir, "good.toml")
+	bad := filepath.Join(dir, "bad.toml")
+	missing := filepath.Join(dir, "missing.toml")
+	for p, src := range map[string]string{
+		good: "spec = 1\ntitle = \"T\"\n[[section]]\nkind = \"text\"\ntext = \"x\"\n",
+		bad:  "spec = 1\ntitle = 3\n",
+	} {
+		if err := os.WriteFile(p, []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, c := range []struct {
+		paths []string
+		code  int
+	}{
+		{[]string{good}, exitOK},
+		{[]string{good, bad}, exitSpec},
+		{[]string{missing}, exitRuntime},
+		// An unreadable file outranks a bad one, in either order.
+		{[]string{bad, missing}, exitRuntime},
+		{[]string{missing, bad}, exitRuntime},
+	} {
+		var stdout, stderr bytes.Buffer
+		if got := run(append([]string{"validate"}, c.paths...), &stdout, &stderr); got != c.code {
+			t.Errorf("validate %q = %d, want %d\n%s", c.paths, got, c.code, stderr.String())
 		}
 	}
 }

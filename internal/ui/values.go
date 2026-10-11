@@ -123,17 +123,3 @@ func display(f *spec.Field, v string) string {
 	}
 	return v
 }
-
-// envName turns a field id or row key into the suffix of PANEL_FIELD_ and
-// PANEL_ROW_ variables: upper case, anything else than A-Z 0-9 becomes _.
-func envName(s string) string {
-	return strings.Map(func(r rune) rune {
-		switch {
-		case r >= 'a' && r <= 'z':
-			return r - 'a' + 'A'
-		case r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-			return r
-		}
-		return '_'
-	}, s)
-}

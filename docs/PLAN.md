@@ -543,3 +543,23 @@ Each entry says what changed from the plan above, and why.
 - **M3 took the runner forward from M4** (`internal/run`): the UI's buttons, apply and lists
   need it. Mutation checks confirmed each guarantee: removing the group kill, `WaitDelay` or
   the `ok:false` rule each turns its test red.
+- **M1 review fixes** (Opus review, `misc/reviews/m1-spec-review.md`):
+  - **Secrets cannot be placeholders.** `{field.<secret>}` in any command or `confirm` is a
+    validation error. Before, the UI just had no value for it, so the spec failed at run time.
+  - **`Validate` serves specs built in Go.** It fills the defaults the TOML decoder fills
+    (id, label, bool values, timeouts, `after`, id column, column titles) and repeats the
+    decoder's shape checks. A bool `Default` is stored as written: with `TrueValue: "1"`, write
+    `Default: "1"`. A test proves a second `Validate` changes nothing.
+  - **A `requires` refusal is the only error shown**, because a newer spec's other "errors"
+    are most likely keys the newer version added. `HostVersion` treats a `replace`d module
+    (a `go.work` build) as devel.
+  - **Shortcut names are checked** against Bubble Tea's naming (`ctrl+O` and `shift+a` are
+    rejected), `delete` and `backspace` are reserved, and **`h j k l` are not**: a spec
+    shortcut is matched before the built-in keys, so it takes the vim alias over while the
+    arrows still move. That keeps the auto-title example's `h` = "hand back".
+  - The program (argv[0]) cannot come from `{row.*}` or `{field.*}`. Two field ids that map
+    to the same `PANEL_FIELD_` name are rejected.
+  - `validate` exits 1 when any file was unreadable, even after a spec error (it took the
+    larger code, so 3 won). `docs/security.md` is written: the trust model, argument
+    injection and `--`, and the shell caveat.
+  - `FuzzParse` also checks that the JSON Schema accepts everything `Parse` accepts.

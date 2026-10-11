@@ -2,11 +2,17 @@ package spec
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	percentRe  = regexp.MustCompile(`^([1-9][0-9]?|100)%$`)
+	requiresRe = regexp.MustCompile(`^>=\s*v?[0-9]+\.[0-9]+(\.[0-9]+)?$`)
 )
 
 // obj reads one table and remembers which keys it consumed, so that every
@@ -107,6 +113,9 @@ func decode(root *table, c *collector) *Spec {
 	}
 	if r, rp, ok := o.str("requires"); ok {
 		s.Requires, s.requiresPos = r, rp
+		if !requiresRe.MatchString(r) {
+			c.add(rp, "requires must read \">=X.Y\" or \">=X.Y.Z\", not %q", r)
+		}
 	}
 	s.Title, _ = o.required("title")
 	if v, p, ok := o.get("size"); ok {
@@ -163,11 +172,11 @@ func decodeSize(t *table, c *collector) Size {
 			}
 			d.Cells = int(v.i)
 		case kString:
-			n, err := strconv.Atoi(strings.TrimSuffix(v.str, "%"))
-			if !strings.HasSuffix(v.str, "%") || err != nil || n < 1 || n > 100 {
-				c.add(posOr(v.pos, p), "%s must be a number of cells or a percentage such as \"70%%\", not %q", key, v.str)
+			if !percentRe.MatchString(v.str) {
+				c.add(posOr(v.pos, p), "%s must be a number of cells or a percentage from 1%% to 100%%, such as \"70%%\", not %q", key, v.str)
+				break
 			}
-			d.Percent = n
+			d.Percent, _ = strconv.Atoi(strings.TrimSuffix(v.str, "%"))
 		default:
 			c.add(posOr(v.pos, p), "%s must be a number of cells or a percentage string, not %s", key, v.kind)
 		}
@@ -255,7 +264,7 @@ func decodeArgv(c *collector, v *value, p Pos, what string) []Template {
 		}
 		argv = append(argv, parseTemplate(c, posOr(a.pos, p), a.str))
 	}
-	if len(argv) > 0 && argv[0].Raw == "" {
+	if len(argv) > 0 && strings.TrimSpace(argv[0].Raw) == "" {
 		c.add(posOr(v.pos, p), "%s must name a program first", what)
 	}
 	return argv
@@ -265,8 +274,9 @@ func parseTemplate(c *collector, p Pos, s string) Template {
 	t, err := ParseTemplate(s)
 	if err != nil {
 		c.add(p, "%v", err)
-		return Template{Raw: s}
+		return Template{Raw: s, pos: p, parts: []part{}}
 	}
+	t.pos = p
 	return t
 }
 
@@ -286,6 +296,9 @@ func decodeSection(i int, t *table, c *collector) *Section {
 		case FieldsSection, ListSection, ButtonsSection, TextSection:
 		default:
 			c.add(kp, "section kind must be fields, list, buttons or text, not %q", k)
+			o.known = append(o.known, t.keys...) // its other keys are not the problem
+			o.done()
+			return sec
 		}
 	}
 	sec.Kind = kind
@@ -327,7 +340,10 @@ func decodeSection(i int, t *table, c *collector) *Section {
 		if s, _, ok := o.str("text"); ok {
 			sec.Text = s
 		}
-		if _, _, has := t.get("source"); has {
+		if _, sp, has := t.get("source"); has {
+			if sec.Text != "" {
+				c.add(sp, "%s has both text and source; use one", what)
+			}
 			decodeSource(o, sec, c, what, false)
 		} else if sec.Text == "" {
 			c.add(t.pos, "%s needs text = \"...\" or a source command", what)
@@ -346,12 +362,20 @@ func decodeSource(o *obj, sec *Section, c *collector, what string, required bool
 		return
 	}
 	sec.Source = decodeCommand(c, v, p, "source", true)
-	// every_s may sit beside source or inside its table.
+	// every_s may sit beside source or inside its table, not both.
 	if n, np, ok := o.integer("every_s"); ok {
 		sec.Every = everyOf(c, n, np)
-	} else if v.kind == kTable {
-		if ev, ep, ok := v.tbl.get("every_s"); ok && ev.kind == kInt {
-			sec.Every = everyOf(c, ev.i, posOr(ev.pos, ep))
+	}
+	if v.kind == kTable {
+		if ev, ep, ok := v.tbl.get("every_s"); ok {
+			switch {
+			case sec.Every > 0:
+				c.add(posOr(ev.pos, ep), "every_s is given twice, beside source and inside it")
+			case ev.kind != kInt:
+				c.add(posOr(ev.pos, ep), "every_s must be an integer, not %s", ev.kind)
+			default:
+				sec.Every = everyOf(c, ev.i, posOr(ev.pos, ep))
+			}
 		}
 	}
 }
@@ -388,6 +412,10 @@ func decodeColumns(c *collector, v *value, p Pos) []Column {
 	for _, e := range v.arr {
 		switch e.kind {
 		case kString:
+			if strings.TrimSpace(e.str) == "" {
+				c.add(posOr(e.pos, p), "a column key must not be empty")
+				continue
+			}
 			cols = append(cols, Column{Key: e.str, Title: e.str})
 		case kTable:
 			o := &obj{t: e.tbl, c: c, what: "a column"}
@@ -452,7 +480,10 @@ func decodeField(t *table, c *collector, what string) *Field {
 	if f.Key != "" {
 		o.what = fmt.Sprintf("field %q", f.Key)
 	}
-	if s, _, ok := o.str("id"); ok {
+	if s, ip, ok := o.str("id"); ok {
+		if strings.TrimSpace(s) == "" {
+			c.add(ip, "id must not be empty; leave it out to use the key")
+		}
 		f.ID = s
 	} else {
 		f.ID = f.Key
@@ -477,8 +508,12 @@ func decodeField(t *table, c *collector, what string) *Field {
 	if b, ok := o.boolean("required"); ok {
 		f.Required = b
 	}
+	var boolDefault *bool
 	if v, p, ok := o.get("default"); ok {
 		f.Default = scalarString(c, v, p, "default")
+		if v.kind == kBool {
+			boolDefault = &v.b
+		}
 	}
 	if v, p, ok := o.get("choices"); ok {
 		f.Choices = decodeChoices(c, v, p)
@@ -509,6 +544,13 @@ func decodeField(t *table, c *collector, what string) *Field {
 	}
 	if v, p, ok := o.get("test"); ok {
 		f.Test = decodeCommand(c, v, p, "test", false)
+	}
+	// default = true means "on", whatever on is written as in the file.
+	if boolDefault != nil && f.Type == Bool {
+		f.Default = f.FalseValue
+		if *boolDefault {
+			f.Default = f.TrueValue
+		}
 	}
 	o.done()
 	return f

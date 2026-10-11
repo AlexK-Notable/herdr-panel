@@ -26,36 +26,36 @@ func TestCommittedSchemaIsCurrent(t *testing.T) {
 	}
 }
 
-func compileSchema(t *testing.T) *jsonschema.Schema {
-	t.Helper()
+func compileSchema(tb testing.TB) *jsonschema.Schema {
+	tb.Helper()
 	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(JSONSchema()))
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	c := jsonschema.NewCompiler()
 	if err := c.AddResource("spec-v1.json", doc); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	sch, err := c.Compile("spec-v1.json")
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return sch
 }
 
-func tomlAsJSON(t *testing.T, data []byte) any {
-	t.Helper()
+func tomlAsJSON(tb testing.TB, data []byte) any {
+	tb.Helper()
 	var m map[string]any
 	if err := toml.Unmarshal(data, &m); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	j, err := json.Marshal(m)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	v, err := jsonschema.UnmarshalJSON(bytes.NewReader(j))
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	return v
 }

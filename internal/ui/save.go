@@ -287,7 +287,7 @@ func (m *Model) commandEnv(row map[string]string) []string {
 				continue
 			}
 			v, _ := m.fieldValue(f)
-			env = append(env, "PANEL_FIELD_"+envName(f.ID)+"="+v)
+			env = append(env, "PANEL_FIELD_"+spec.EnvName(f.ID)+"="+v)
 		}
 	}
 	keys := make([]string, 0, len(row))
@@ -296,7 +296,7 @@ func (m *Model) commandEnv(row map[string]string) []string {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		env = append(env, "PANEL_ROW_"+envName(k)+"="+row[k])
+		env = append(env, "PANEL_ROW_"+spec.EnvName(k)+"="+row[k])
 	}
 	return env
 }

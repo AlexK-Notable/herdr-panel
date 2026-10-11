@@ -60,6 +60,7 @@ type table struct {
 	keyPos  map[string]Pos
 	defined bool // by a [header] or as an inline table, so it cannot be reopened
 	inline  bool // inline tables are closed: nothing may be added afterwards
+	dotted  bool // made by a dotted key (a.b = 1); TOML forbids a [header] for it
 	isArray bool // an element of an [[array of tables]]
 }
 
@@ -175,7 +176,7 @@ func (b *treeBuilder) expression(n *unstable.Node) {
 			nt.defined = true
 			t.set(last.name, last.pos, &value{kind: kTable, pos: last.pos, tbl: nt})
 			b.cur = nt
-		case v.kind == kTable && !v.tbl.defined && !v.tbl.inline:
+		case v.kind == kTable && !v.tbl.defined && !v.tbl.inline && !v.tbl.dotted:
 			v.tbl.defined = true
 			v.tbl.pos = last.pos
 			b.cur = v.tbl
@@ -197,7 +198,7 @@ func (b *treeBuilder) expression(n *unstable.Node) {
 		switch {
 		case !ok:
 			t.set(last.name, last.pos, &value{kind: kArray, pos: last.pos, arr: []*value{{kind: kTable, pos: last.pos, tbl: nt}}})
-		case v.kind == kArray && len(v.arr) > 0 && v.arr[0].kind == kTable && v.arr[0].tbl.isArray:
+		case isArrayOfTables(v):
 			v.arr = append(v.arr, &value{kind: kTable, pos: last.pos, tbl: nt})
 		default:
 			b.c.add(last.pos, "[[%s]] conflicts with a value defined earlier", dotted(parts))
@@ -206,6 +207,16 @@ func (b *treeBuilder) expression(n *unstable.Node) {
 	default:
 		// Comments and whitespace carry nothing a spec needs.
 	}
+}
+
+// isArrayOfTables reports whether v was made by [[headers]], as opposed to a
+// static array, which may hold anything and cannot be extended.
+func isArrayOfTables(v *value) bool {
+	if v.kind != kArray || len(v.arr) == 0 {
+		return false
+	}
+	last := v.arr[len(v.arr)-1]
+	return last.kind == kTable && last.tbl.isArray
 }
 
 // descend walks a header's leading keys from t, creating implicit tables and
@@ -220,7 +231,7 @@ func (b *treeBuilder) descend(t *table, parts []keyPart) *table {
 			t = nt
 		case v.kind == kTable && !v.tbl.inline:
 			t = v.tbl
-		case v.kind == kArray && len(v.arr) > 0 && v.arr[len(v.arr)-1].kind == kTable && v.arr[0].tbl.isArray:
+		case isArrayOfTables(v):
 			t = v.arr[len(v.arr)-1].tbl
 		default:
 			b.c.add(part.pos, "%q is already %s, not a table", part.name, v.kind)
@@ -238,9 +249,10 @@ func (b *treeBuilder) keyValue(t *table, n *unstable.Node) {
 		switch {
 		case !ok:
 			nt := newTable(part.pos)
+			nt.dotted = true
 			t.set(part.name, part.pos, &value{kind: kTable, pos: part.pos, tbl: nt})
 			t = nt
-		case v.kind == kTable && !v.tbl.inline && !v.tbl.defined:
+		case v.kind == kTable && !v.tbl.inline && (v.tbl.dotted || !v.tbl.defined):
 			t = v.tbl
 		default:
 			b.c.add(part.pos, "key %q is defined twice", dotted(parts))

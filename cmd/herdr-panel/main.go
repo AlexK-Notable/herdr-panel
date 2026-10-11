@@ -104,23 +104,26 @@ func validate(paths []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stderr, usage)
 		return exitUsage
 	}
-	code := exitOK
+	var runtimeErr, specErr bool
 	for _, p := range paths {
 		if _, err := spec.Load(p); err != nil {
 			fmt.Fprintln(stderr, err)
 			if spec.IsSpecError(err) {
-				code = max(code, exitSpec)
+				specErr = true
 			} else {
-				code = max(code, exitRuntime)
+				runtimeErr = true
 			}
 			continue
 		}
 		fmt.Fprintf(stdout, "%s: ok\n", p)
 	}
-	if code == exitRuntime {
+	switch {
+	case runtimeErr:
 		return exitRuntime // an unreadable file outranks a bad one
+	case specErr:
+		return exitSpec
 	}
-	return code
+	return exitOK
 }
 
 // observeCmd renders a panel headlessly and prints it: the frame, every
