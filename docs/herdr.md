@@ -62,6 +62,15 @@ link`, and without a shell. So:
 - **A linked plugin** (development) builds its own binary, e.g. from its
   Makefile; `[[build]]` does not run for it.
 
+herdr-panel needs Go 1.26. A Go plugin whose own `go.mod` supports an older
+Go can keep it: pin herdr-panel in a module of its own (say `panel/go.mod`,
+with `go 1.26.0` and the `tool` line) and build it with
+`["go", "build", "-C", "panel", "-o", "../bin/herdr-panel", "github.com/AlexK-Notable/herdr-panel/cmd/herdr-panel"]`.
+With `-C`, an older `go` command fetches Go 1.26 by itself (unless
+`GOTOOLCHAIN=local`). A pin read with `-modfile` instead does not: toolchain
+selection reads only the main module's `go.mod`, so on an older Go that build
+fails, and a failed `[[build]]` stops the whole install.
+
 `[[build]]` runs with the environment of the `herdr plugin install` command,
 so Go settings (`GOPRIVATE`, `GOPROXY`, `GOFLAGS`) come from there. Both
 forms above are checked from the `v0.1.0` tag by `TestInstallBuildsFromTag`

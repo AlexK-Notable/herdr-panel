@@ -735,3 +735,11 @@ Each entry says what changed from the plan above, and why.
     proxy nor the checksum database has it. The local module cache was cleared and the go-build
     scratch plugin's `go.sum` regenerated (the zip hash changed, the `go.mod` hash did not). Once
     the repository is public, a tag is never moved again; a fix is a new version.
+- **Published 2026-10-11** on the user's word, after the history rewrite and a second full-history
+  gitleaks scan. Afterwards `TestInstallBuildsFromTag` passed without `GOPRIVATE` (through the
+  public proxy and checksum database, which record `v0.1.0` as `h1:OEThkEPB…`, the rewritten
+  module). The auto-title fork then pinned `v0.1.0` (`15b26cc`, branch pushed): in a `panel/`
+  module of its own, built with `go build -C panel`, because its CI keeps Go 1.24 and a root pin
+  would raise that floor. Toolchain switching was measured: it follows `-C` but not `-modfile`
+  (a `go 1.99.0` line made `go` try to download go1.99.0 with `-C`, and only error with
+  `-modfile`), so `docs/herdr.md` gives the `-C` form.
