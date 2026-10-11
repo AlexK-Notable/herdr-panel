@@ -1,0 +1,8 @@
+{"t": 1791685404.95, "pid": 960334, "mode": "pane", "kind": "start", "env": {"COLORTERM": "truecolor", "HERDR_BIN_PATH": "/home/user/.local/bin/herdr", "HERDR_ENV": "1", "HERDR_PLUGIN_CONFIG_DIR": "/home/user/repos/herdr-panel/spike/xdg/herdr/plugins/config/spike.probe", "HERDR_PLUGIN_ENTRYPOINT_ID": "probe", "HERDR_PLUGIN_ID": "spike.probe", "HERDR_PLUGIN_ROOT": "/home/user/repos/herdr-panel/spike/probe", "HERDR_PLUGIN_STATE_DIR": "/home/user/.local/state/herdr/plugins/spike.probe", "HERDR_SOCKET_PATH": "/home/user/repos/herdr-panel/spike/xdg/herdr/herdr.sock", "SPIKE_VIA": "under-modal", "TERM": "xterm-256color", "TERM_PROGRAM": "herdr"}, "context": {"workspace_id": "w3", "workspace_label": "~", "workspace_cwd": "/home/user", "tab_id": "w3:t1", "tab_label": "1", "focused_pane_id": "w3:p1", "focused_pane_cwd": "/home/user", "focused_pane_status": "unknown", "invocation_source": "api", "correlation_id": "plugin-pane"}, "cols": 57, "rows": 12, "isatty": true}
+{"t": 1791685405.053, "pid": 960334, "mode": "pane", "kind": "input", "bytes": "\u001b"}
+{"t": 1791685405.842, "pid": 960334, "mode": "pane", "kind": "input", "bytes": "\u001b"}
+{"t": 1791685406.645, "pid": 960334, "mode": "pane", "kind": "input", "bytes": "\u001b"}
+{"t": 1791685407.095, "pid": 960334, "mode": "pane", "kind": "input", "bytes": "\u001b[A"}
+{"t": 1791685407.495, "pid": 960334, "mode": "pane", "kind": "input", "bytes": "\u001bx"}
+{"t": 1791685407.895, "pid": 960334, "mode": "pane", "kind": "input", "bytes": "q"}
+{"t": 1791685407.895, "pid": 960334, "mode": "pane", "kind": "end", "how": "q"}

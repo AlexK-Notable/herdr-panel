@@ -1,0 +1,4 @@
+# herdr's isolated runtime state for the spike: sockets, sessions, logs
+spike/xdg/herdr/*
+!spike/xdg/herdr/config.toml
+__pycache__/

@@ -1,0 +1,25 @@
+id = "spike.probe"
+name = "Spike probe"
+version = "0.0.1"
+min_herdr_version = "0.7.0"
+description = "Logs what a herdr popup process receives: env, context, size, input bytes"
+platforms = ["linux"]
+
+[[panes]]
+id = "probe"
+title = "Probe"
+placement = "popup"
+width = 60
+height = 16
+command = ["python3", "probe.py", "pane"]
+
+[[actions]]
+id = "open"
+title = "Open probe popup"
+contexts = ["workspace"]
+command = ["sh", "-c", "exec \"$HERDR_BIN_PATH\" plugin pane open --plugin spike.probe --entrypoint probe --focus --env SPIKE_VIA=action"]
+
+[[actions]]
+id = "dump"
+title = "Dump context"
+command = ["python3", "probe.py", "dump"]

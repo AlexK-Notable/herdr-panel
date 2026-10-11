@@ -1,0 +1,18 @@
+onboarding = false
+# Isolated config for the panel spike (XDG_CONFIG_HOME=spike/xdg). Never the live one.
+[experimental]
+allow_nested = true
+
+[[keys.command]]
+key = "prefix+p"
+type = "plugin_action"
+command = "spike.probe.open"
+description = "probe via plugin action"
+
+[[keys.command]]
+key = "prefix+o"
+type = "popup"
+command = "python3 /home/user/repos/herdr-panel/spike/probe/probe.py keypopup"
+width = 60
+height = 16
+description = "probe via popup keybinding"
