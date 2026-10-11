@@ -266,7 +266,7 @@ func (m *Model) footerLines(w int) []line {
 	add := func(id, label string) {
 		buttons = append(buttons, m.button(id, label, "button"), plain(" "))
 	}
-	if m.spec.Save != spec.Live {
+	if m.showsSave() {
 		add("save", "Save ctrl+s")
 		add("revert", "Revert")
 	}

@@ -167,3 +167,14 @@ a `tomlfile` store), when `HERDR_PANEL_FILEVIEWER_DIR` names that checkout
 with `bin/herdr-panel` built. It asks herdr for the plugin's config directory,
 seeds the viewer's documented all-commented config, saves a setting, and
 checks the file byte for byte.
+
+`TestPluginManager` drives herdr-plugin-manager when
+`HERDR_PANEL_PLUGINMANAGER_DIR` names its checkout with `make build` done.
+It links the manager and a scratch plugin (`integration/testdata/plugins/popup-target`),
+whose action the isolated config binds to a key. Then it clicks a plugin and
+waits for the keys that follow the selection. It disables and enables the
+plugin, checking herdr's own state each time, and checks that the manager
+refuses to disable itself. Last, it presses Run on the scratch plugin's popup
+pane. The manager closes, and the scratch popup opens:
+`after = "close_then_run"`, end to end. With a plain action instead, herdr
+refuses the second popup, and the test fails.

@@ -39,10 +39,16 @@ func (m *Model) focusOrder() []string {
 		case spec.TextSection:
 		}
 	}
-	if m.spec.Save != spec.Live {
+	if m.showsSave() {
 		ids = append(ids, "save", "revert")
 	}
 	return append(ids, "close")
+}
+
+// showsSave reports whether the panel offers Save and Revert: not in live
+// mode, which saves each edit, and not without a store to save to.
+func (m *Model) showsSave() bool {
+	return m.spec.Save != spec.Live && len(m.spec.Stores) > 0
 }
 
 func actionID(kind string, sec, j int) string {

@@ -153,3 +153,14 @@ func TestCloseThenRunRefusesWithUnsavedEdits(t *testing.T) {
 	}
 	f.expectFrame("save or revert your 1 unsaved edit(s) first")
 }
+
+func TestNoStoresNoSaveButtons(t *testing.T) {
+	t.Parallel()
+	f := open(t, selSpec, "", selStubs...)
+	fr := f.frame()
+	if strings.Contains(fr, "Save ctrl+s") || strings.Contains(fr, "Revert") || !strings.Contains(fr, "Close esc") {
+		t.Errorf("a panel with no stores offers Save or Revert:\n%s", fr)
+	}
+	g := open(t, closeThenRunSpec, "NAME=x\n")
+	g.expectFrame("Save ctrl+s", "Revert")
+}

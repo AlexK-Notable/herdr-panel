@@ -1,0 +1,19 @@
+# A scratch plugin for TestPluginManager: one popup pane to open from the
+# manager, and one action a key in the test's config is bound to.
+id = "herdr-panel-test.popup-target"
+name = "Popup target"
+version = "0.0.0"
+min_herdr_version = "0.9.0"
+platforms = ["linux", "macos"]
+
+[[panes]]
+id = "target"
+title = "Target popup"
+placement = "popup"
+command = ["sh", "-c", "echo TARGET POPUP OPEN; sleep 60"]
+
+[[actions]]
+id = "say"
+title = "Say something"
+contexts = ["global"]
+command = ["true"]

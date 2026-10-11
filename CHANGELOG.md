@@ -18,6 +18,7 @@ may break the spec or the Go API, and every such break is listed under
   unsaved. observe records such a call with `"after_exit": true`.
 - Section titles are templates: they may use `{sel.*}`, `{ctx.*}` and
   `{env.*}` (`Section.ExpandTitle`). `Section.Title` stays a string.
+- A panel without stores no longer shows Save and Revert.
 
 ### Breaking
 
