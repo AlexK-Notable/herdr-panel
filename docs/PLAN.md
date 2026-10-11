@@ -743,3 +743,9 @@ Each entry says what changed from the plan above, and why.
   would raise that floor. Toolchain switching was measured: it follows `-C` but not `-modfile`
   (a `go 1.99.0` line made `go` try to download go1.99.0 with `-C`, and only error with
   `-modfile`), so `docs/herdr.md` gives the `-C` form.
+- **M6 accepted in the live session (2026-10-11).** The user ran the go-live (fast-forward merge,
+  `make panel`, restart, `open-settings`), then asked me to reopen the panel and confirm it from a
+  screenshot. The panel drew in the live herdr client with the live data: the user's saved
+  `config.env` values (marked as set, not default), the five live workspaces with who named each,
+  and the row actions. An empty overrides section leaves a blank band under the title; cosmetic,
+  noted for a later release.
