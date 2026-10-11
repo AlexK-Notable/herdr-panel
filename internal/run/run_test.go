@@ -120,7 +120,12 @@ func TestCancelKillsCommand(t *testing.T) {
 
 func TestEnvAndDir(t *testing.T) {
 	t.Parallel()
-	dir := t.TempDir()
+	// On macOS the temporary directory sits behind a symlink (/var is
+	// /private/var), and the shell reports the resolved path.
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	r := Exec{}.Run(context.Background(), Request{Argv: sh(`printf '%s|%s' "$PANEL_X" "$PWD"`), Env: []string{"PANEL_X=1 2"}, Dir: dir})
 	if got := string(r.Stdout); got != "1 2|"+dir {
 		t.Errorf("got %q", got)
