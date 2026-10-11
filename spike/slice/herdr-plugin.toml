@@ -1,0 +1,26 @@
+# Slice S: a real Bubble Tea v2 panel in a herdr popup, installed through
+# `herdr plugin install` so that [[build]] actually runs (link never builds).
+id = "spike.slice"
+name = "Spike slice"
+version = "0.0.1"
+min_herdr_version = "0.7.0"
+description = "Bubble Tea v2 popup: key encoding, teardown, size, first frame, panics"
+platforms = ["linux"]
+
+# No shell: herdr runs this argv in the checkout directory.
+[[build]]
+command = ["go", "build", "-o", "bin/slice", "."]
+
+[[panes]]
+id = "slice"
+title = "Slice"
+placement = "popup"
+width = 60
+height = 16
+command = ["./bin/slice"]
+
+[[actions]]
+id = "open"
+title = "Open slice popup"
+contexts = ["workspace"]
+command = ["sh", "-c", "exec \"$HERDR_BIN_PATH\" plugin pane open --plugin spike.slice --entrypoint slice --focus --env SLICE_VIA=action"]

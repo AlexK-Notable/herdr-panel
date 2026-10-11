@@ -1,0 +1,18 @@
+# Negative control for slice S: a [[build]] that fails must stop the install,
+# leaving no plugin registered. If this ever installs, the build check proves
+# nothing.
+id = "spike.slicebad"
+name = "Spike slice (failing build)"
+version = "0.0.1"
+min_herdr_version = "0.7.0"
+description = "A plugin whose build always fails"
+platforms = ["linux"]
+
+[[build]]
+command = ["go", "build", "-o", "bin/none", "./does-not-exist"]
+
+[[panes]]
+id = "none"
+title = "None"
+placement = "popup"
+command = ["./bin/none"]

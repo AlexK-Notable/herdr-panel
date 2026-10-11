@@ -5,3 +5,4 @@ __pycache__/
 spike/xdg-state/
 spike/xdg-data/
 spike/xdg-cache/
+spike/slice/bin/
