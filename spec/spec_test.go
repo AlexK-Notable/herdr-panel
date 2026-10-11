@@ -323,6 +323,7 @@ func TestVersionIn(t *testing.T) {
 		{mod("v0.3.1", false), "v0.3.1"},
 		{mod("v0.3.1", true), "devel"}, // a go.work or replace builds local source
 		{mod("(devel)", false), "devel"},
+		{&debug.BuildInfo{Main: debug.Module{Path: modulePath, Version: "v0.1.0"}}, "v0.1.0"}, // go install …@v0.1.0
 		{&debug.BuildInfo{Main: debug.Module{Path: modulePath, Version: "(devel)"}}, "devel"},
 		{&debug.BuildInfo{Main: debug.Module{Path: "other"}}, "devel"},
 	} {

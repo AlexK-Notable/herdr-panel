@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 	"syscall"
 
@@ -90,13 +89,10 @@ func runPanel(path string, stderr io.Writer) int {
 	}
 }
 
-// version reports the module version a consumer built, or "devel".
-func version() string {
-	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
-		return info.Main.Version
-	}
-	return "devel"
-}
+// version reports the herdr-panel version a consumer built, or "devel".
+// Built as a Go plugin's tool, herdr-panel is a dependency, not the main
+// module, so the version is looked up among both.
+func version() string { return spec.HostVersion() }
 
 // validate checks each spec and reports every problem with file:line:col.
 func validate(paths []string, stdout, stderr io.Writer) int {
