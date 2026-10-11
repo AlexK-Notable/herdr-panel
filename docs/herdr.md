@@ -32,7 +32,8 @@ command = ["sh", "-c", "exec \"$HERDR_BIN_PATH\" plugin pane open --plugin my.pl
 
 `command` runs without a shell, in the plugin's directory; a relative
 program is relative to it. A size given to `plugin.pane.open` wins over
-the manifest's.
+the manifest's. `herdr plugin install` also requires the manifest's
+top-level `min_herdr_version` (`plugin link` does not).
 
 ## Building herdr-panel in a plugin
 
