@@ -194,6 +194,25 @@ Every module the library or its tests compile against has a row here;
 | Module | License | Where |
 |---|---|---|
 | `github.com/pelletier/go-toml/v2` | MIT | library: spec decoding with positions |
+| `charm.land/bubbletea/v2` | MIT | library: the program loop |
+| `charm.land/lipgloss/v2` | MIT | library: styles, and the compositor that draws and hit-tests |
+| `github.com/charmbracelet/ultraviolet` | MIT | library: terminal input and screen, under Bubble Tea |
+| `github.com/charmbracelet/colorprofile` | MIT | library: colour downsampling, NO_COLOR |
+| `github.com/charmbracelet/x/ansi` | MIT | library: display width and truncation |
+| `github.com/charmbracelet/x/term` | MIT | library: raw mode for the crash hold screen |
+| `github.com/charmbracelet/x/termios` | MIT | library: required by x/term |
+| `github.com/charmbracelet/x/windows` | MIT | library: required by Bubble Tea (Windows only) |
+| `github.com/clipperhouse/displaywidth` | MIT | library: required by Lip Gloss |
+| `github.com/clipperhouse/uax29/v2` | MIT | library: required by Lip Gloss |
+| `github.com/lucasb-eyer/go-colorful` | MIT | library: required by Lip Gloss |
+| `github.com/mattn/go-runewidth` | MIT | library: required by Bubble Tea |
+| `github.com/muesli/cancelreader` | MIT | library: required by Bubble Tea |
+| `github.com/rivo/uniseg` | MIT | library: required by Lip Gloss |
+| `github.com/xo/terminfo` | MIT | library: required by Bubble Tea |
+| `golang.org/x/sync` | BSD-3-Clause | library: required by Bubble Tea |
+| `golang.org/x/sys` | BSD-3-Clause | library: required by Bubble Tea |
+| `github.com/charmbracelet/x/exp/golden` | MIT | tests: golden frames |
+| `github.com/aymanbagabas/go-udiff` | BSD-3-Clause | tests: required by golden |
 | `github.com/joho/godotenv` | MIT | tests: an oracle the env-file store must read files like; it never writes |
 | `github.com/santhosh-tekuri/jsonschema/v6` | Apache-2.0 | tests: validates the examples against the published JSON Schema |
 | `golang.org/x/text` | BSD-3-Clause | tests: required by jsonschema |

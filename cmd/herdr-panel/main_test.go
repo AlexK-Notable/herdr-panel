@@ -16,7 +16,8 @@ func TestRunExitCodes(t *testing.T) {
 		{nil, exitUsage, ""},
 		{[]string{"version"}, exitOK, "herdr-panel "},
 		{[]string{"--help"}, exitOK, "usage:"},
-		{[]string{"bogus"}, exitUsage, ""},
+		{[]string{"--bogus"}, exitUsage, ""},
+		{[]string{"a.toml", "b.toml"}, exitUsage, ""},
 	}
 	for _, c := range cases {
 		var stdout, stderr bytes.Buffer

@@ -534,3 +534,12 @@ Each entry says what changed from the plan above, and why.
   such a file safe, so `Save` refuses it with `ErrUnterminated` and the line number. `Load`
   still reads it, ignoring the broken line, as godotenv does. The failing input is kept as
   a fuzz seed.
+- **M3, the text input is our own** (`internal/ui/editor.go`, about 120 lines), not Bubbles'
+  `textinput`. The latter's virtual cursor blinks on a timer, so `observe` frames and golden
+  files would not be deterministic. Bubbles is therefore not a dependency.
+- **M3, the dialog backdrop is in the logic, not a layer.** A full-screen ID'd layer would
+  have to draw spaces over the panel. Instead, while a dialog is open, a click hits only the
+  dialog's elements, and every other click is swallowed. `TestDialogIsModal` proves it.
+- **M3 took the runner forward from M4** (`internal/run`): the UI's buttons, apply and lists
+  need it. Mutation checks confirmed each guarantee: removing the group kill, `WaitDelay` or
+  the `ok:false` rule each turns its test red.
