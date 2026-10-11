@@ -15,7 +15,7 @@ herdr-panel is meant to be written once. It has two parts:
 
 The first consumer is the herdr-auto-title fork: settings, plus a workspace list with "rename
 now". The repo is `~/repos/herdr-panel` → `github.com/AlexK-Notable/herdr-panel`: private, MIT,
-`main` at `6bed05a`. It holds `spike/`, README.md, AGENTS.md and CONTRIBUTING.md.
+`main` at `be4ed90`. It holds `spike/`, README.md, AGENTS.md and CONTRIBUTING.md.
 
 Design record (znote): design `VaekjUNTPwEey_zx30Ofy`, prior art `EK_SOODKcugzTeQbnHfwo`,
 spike `87qNNe7uxbtfJt3acThq3`, licensing `i0niRea8sDUBj_nhtSDHs`.
@@ -707,7 +707,7 @@ Each entry says what changed from the plan above, and why.
     to exit (L13).
   - **The integration run then found that text sections cut long lines**, dropping the
     override names at the popup's width. Text sections now wrap at words.
-- **M8, the release.** `v0.1.0` is an annotated tag on `1bada53` (CI green). Before tagging,
+- **M8, the release.** `v0.1.0` is an annotated tag on `b4675cf` (CI green). Before tagging,
   `go install …@<sha>` and a scratch Go module with `go get -tool …@<sha>` both built a binary
   whose `version` named the module version, which proved the dependency path of
   `spec.HostVersion`. `TestInstallBuildsFromTag` then installed both `[[build]]` forms from
@@ -724,3 +724,14 @@ Each entry says what changed from the plan above, and why.
     under test, and a binding adds only herdr's own key dispatch.
   - Still open, and the user's to decide: the repository going public (after a full-history
     gitleaks scan), and then the same check without `GOPRIVATE`, and the fork's `go.mod` pin.
+- **After M8, history rewritten to remove local paths.** Before going public the user asked for
+  the `/home/<user>` paths in `spike/` (probe logs, a log path, a test config) to be removed; they
+  were in history, so `git filter-repo --replace-text` rewrote it, and every commit hash after the
+  spike changed (the old hashes in commit messages and checkpoints no longer resolve; the map is
+  in znote checkpoint 9). A bundle of the old history is kept outside the repository.
+  - **The `v0.1.0` tag moved with it** (now `b4675cf`), and its module checksum changed because
+    `spike/out` is inside the root module. That is safe only because the old `v0.1.0` never left
+    this machine and the private repository: every fetch ran under `GOPRIVATE`, so neither the Go
+    proxy nor the checksum database has it. The local module cache was cleared and the go-build
+    scratch plugin's `go.sum` regenerated (the zip hash changed, the `go.mod` hash did not). Once
+    the repository is public, a tag is never moved again; a fix is a new version.
