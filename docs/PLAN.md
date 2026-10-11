@@ -610,3 +610,38 @@ Each entry says what changed from the plan above, and why.
   (`v0.0.0-20261011004359-2acd7e345453`). It is a test-only dependency in its own module.
 - **M5, a crash inside herdr also sends a notification** naming the crash log
   (`TestCrashNotifiesHerdr`, against a fake socket).
+- **M3 review fixes** (Opus review, `misc/reviews/m3-review.md`). Every fix has a test that a
+  mutation turned red, file restored byte-identical afterwards:
+  - **H1** A panic in `Update` returned a nil model to Bubble Tea; `Update` now names its
+    results so the recover returns the panel showing the crash screen. **H2** "Save and close"
+    cancelled the apply before it ran: the close now waits until every store is saved *and*
+    applied, and any failure keeps the panel open.
+  - **M1** A click elsewhere commits the field being typed in (a click on `[Save]` saves it).
+    **M2** The binary shows the "no such view" screen before refusing (exit 1). **M3** Only
+    Bubble Tea's runtime requests from a view's command reach the runtime; every other
+    message returns to the view. **M4** Live mode re-saves an edit made while a save was in
+    flight. **M5** A load that started before a save cannot overwrite the save's snapshot.
+  - **M6** Dialogs fit the screen: a picker's options window around the cursor, long text
+    scrolls (↑ ↓ PgUp PgDn, and the wheel) behind "… N more" markers, the frame is cropped,
+    and a dialog hidden by "make me bigger" takes only `esc` and `ctrl+c`.
+  - **M7** The wheel and PgDn scroll the body; the view returns to the focus only when the
+    focus or a list's selection moves. The wheel never moves the body behind a dialog.
+  - **M8** The headless driver behaves like Bubble Tea where it hid H1 and H2: it uses the
+    model `Update` returns, stops at `QuitMsg`, and the sandbox refuses a cancelled command.
+  - **M9** `panel.Tick` replaces `tea.Tick` for views. Under a driver (`NoTimers`) every
+    timer, the panel's own polling included, is parked on a clock that only
+    `Driver.Advance` / `paneltest.Panel.Advance` / the `advance` script verb moves; ticks
+    fall due in order, re-armed ones included. A view ticking every second is driven
+    through 4 s in under a millisecond.
+  - Lows: a view focused at startup is told (L1); docs give row ids as list indices (L2);
+    the conflict dialog ignores `y`/`n`, since its first button drops your edits (L3);
+    **`paneltest.Config` takes `Views`, `Theme`, `Context`, `Via`** instead of a
+    `panel.Options` whose IO and size it ignored (L4, breaking); paneltest and `observe
+    --sandbox` take `create` from the spec (L5); a bad or duplicate `Region.ID` shows the
+    crash screen (L6); the signal goroutine ends with `Run` (L7); `Run` waits up to 50 ms
+    for killed commands to end before returning (L9); `tea.Sequence` order is asserted
+    (L8). Also: command messages lose escape sequences and line breaks before reaching the
+    status line, and a list or text refresh asked for during a load runs once it answers.
+  - **Found on the way: `os.Stderr` raced between two `Run`s** in one process (the new
+    parallel `TestMissingViewIsShownThenRefused` exposed it under `-race`). One panel at a
+    time owns the stderr redirect; another leaves stderr alone and says so on crash.

@@ -104,3 +104,71 @@ func TestMissingViewIsShownNotCrashed(t *testing.T) {
 		t.Errorf("frame:\n%s", d.Model().Frame())
 	}
 }
+
+// echo is a view whose command returns whatever it was told to.
+type echo struct {
+	send tea.Msg
+	got  []tea.Msg
+}
+
+func (e *echo) Render(int, bool) ui.ViewOutput {
+	return ui.ViewOutput{Lines: []string{"[go]"}, Regions: []ui.ViewRegion{{ID: "go", Line: 0, X: 0, W: 4}}}
+}
+
+func (e *echo) Update(msg tea.Msg) tea.Cmd {
+	e.got = append(e.got, msg)
+	if _, ok := msg.(ui.ViewClick); ok {
+		send := e.send
+		return func() tea.Msg { return send }
+	}
+	return nil
+}
+
+// A Bubble Tea event a view's command returns goes back to that view, never
+// to the panel: an esc would close it, a size would shrink it.
+func TestViewEventsComeBackToTheView(t *testing.T) {
+	t.Parallel()
+	for _, msg := range []tea.Msg{
+		tea.KeyPressMsg{Code: tea.KeyEscape},
+		tea.WindowSizeMsg{Width: 4, Height: 2},
+		tea.SuspendMsg{},
+	} {
+		e := &echo{send: msg}
+		d := viewDriver(t, e)
+		if err := d.Click("view:v:go"); err != nil {
+			t.Fatal(err)
+		}
+		if d.Quit || strings.Contains(d.Model().Frame(), "make me bigger") {
+			t.Errorf("%T reached the panel: quit %v, frame %q", msg, d.Quit, d.Model().Frame())
+		}
+		if last := e.got[len(e.got)-1]; last != msg {
+			t.Errorf("%T: the view got %T last", msg, last)
+		}
+	}
+}
+
+// regions is a view that draws whatever regions it is given.
+type regions []ui.ViewRegion
+
+func (r regions) Render(int, bool) ui.ViewOutput {
+	return ui.ViewOutput{Lines: []string{"[one] [two]"}, Regions: r}
+}
+
+func (regions) Update(tea.Msg) tea.Cmd { return nil }
+
+func TestBadRegionIDsShowTheCrashScreen(t *testing.T) {
+	t.Parallel()
+	for _, rs := range []regions{
+		{{ID: "a b", Line: 0, X: 0, W: 5}},
+		{{ID: "", Line: 0, X: 0, W: 5}},
+		{{ID: "x", Line: 0, X: 0, W: 5}, {ID: "x", Line: 0, X: 6, W: 5}},
+	} {
+		d := viewDriver(t, rs)
+		if !d.Model().Crashed() {
+			t.Errorf("regions %+v drew without complaint:\n%s", rs, d.Model().Frame())
+		}
+	}
+	if d := viewDriver(t, regions{{ID: "one_1", Line: 0, X: 0, W: 5}, {ID: "Two-2", Line: 0, X: 6, W: 5}}); d.Model().Crashed() {
+		t.Errorf("valid ids refused:\n%s", d.Model().Frame())
+	}
+}

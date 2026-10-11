@@ -26,6 +26,13 @@ type firstFrame struct {
 	once   sync.Once
 }
 
+// text is everything written so far.
+func (f *firstFrame) text() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.buf.String()
+}
+
 func (f *firstFrame) Write(p []byte) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

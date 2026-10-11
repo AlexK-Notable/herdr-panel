@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -130,12 +131,28 @@ func (m *Model) viewResult(name string, msg tea.Msg) tea.Msg {
 		}
 		return tea.BatchMsg(wrapped)
 	}
-	// Bubble Tea's own requests (a window title, a cursor, a clipboard
-	// write) go to the runtime; everything else is the view's.
-	if reflect.TypeOf(msg).PkgPath() == reflect.TypeFor[tea.BatchMsg]().PkgPath() {
+	if isRuntimeRequest(msg) {
 		return msg
 	}
 	return viewMsg{name: name, msg: msg}
+}
+
+// isRuntimeRequest reports whether msg asks Bubble Tea's runtime to do
+// something: a window title, a clipboard write, a cursor, raw output, a
+// size query. In v2.1 those are Bubble Tea's unexported message types, plus
+// RawMsg. Its exported messages (keys, mouse, a window size, suspend) are
+// events, and a view that returns one gets it back itself: delivered to the
+// panel, an esc would close it and a size would shrink it.
+func isRuntimeRequest(msg tea.Msg) bool {
+	t := reflect.TypeOf(msg)
+	if t.PkgPath() != reflect.TypeFor[tea.BatchMsg]().PkgPath() {
+		return false
+	}
+	if _, raw := msg.(tea.RawMsg); raw {
+		return true
+	}
+	name := t.Name()
+	return name != "" && name[0] >= 'a' && name[0] <= 'z'
 }
 
 // viewFocusChange tells views that gained or lost the focus.
@@ -175,6 +192,10 @@ func (m *Model) viewLines(sec *spec.Section, w int) []line {
 	id := viewPrefix + sec.View
 	focused := m.focus == id
 	out := v.Render(max(1, w-2), focused)
+	if err := checkRegions(out.Regions); err != nil {
+		// A programming error in the view: the crash screen names it.
+		panic(fmt.Sprintf("view %s: %v", sec.View, err))
+	}
 	lines := make([]line, 0, len(out.Lines))
 	for i, text := range out.Lines {
 		l := line{plain(" ")}
@@ -188,6 +209,31 @@ func (m *Model) viewLines(sec *spec.Section, w int) []line {
 		lines = append(lines, line{seg{id: id}})
 	}
 	return lines
+}
+
+// checkRegions enforces what Region.ID promises: letters, digits, _ and -,
+// unique within the view. An id with a space would break an observe script
+// ("click view:v:a b"); two alike would be one element twice.
+func checkRegions(regions []ViewRegion) error {
+	seen := map[string]bool{}
+	for _, r := range regions {
+		if r.ID == "" || strings.IndexFunc(r.ID, notIDRune) >= 0 {
+			return fmt.Errorf("region id %q: use letters, digits, _ and -", r.ID)
+		}
+		if seen[r.ID] {
+			return fmt.Errorf("region id %q is used twice", r.ID)
+		}
+		seen[r.ID] = true
+	}
+	return nil
+}
+
+func notIDRune(c rune) bool {
+	switch {
+	case c == '_', c == '-', c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		return false
+	}
+	return true
 }
 
 // regionSegs cuts one line of a view into plain and clickable parts.

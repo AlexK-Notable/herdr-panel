@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -81,9 +82,18 @@ func RunFile(ctx context.Context, path string, opts Options) error {
 
 // Run runs a validated spec until the user closes it, a signal arrives, or
 // ctx ends. A spec with a view section that opts.Views does not supply is
-// refused with an error wrapping ErrNoView.
+// refused: the panel shows why until a key is pressed, then Run returns an
+// error wrapping ErrNoView.
 func Run(ctx context.Context, s *spec.Spec, opts Options) error {
 	uopts, err := uiOptions(s, opts)
+	if errors.Is(err, ErrNoView) {
+		// Shown, not just returned: in a popup an exit takes its message
+		// with it.
+		if rerr := run(ctx, ui.Options{LoadErr: err}, opts); rerr != nil {
+			return rerr
+		}
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -175,13 +185,19 @@ func run(ctx context.Context, uopts ui.Options, opts Options) error {
 	// commands the same way, within herdr's 250 ms grace.
 	sigs := make(chan os.Signal, 2)
 	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT)
-	defer signal.Stop(sigs)
+	defer func() {
+		signal.Stop(sigs)
+		close(sigs) // ends the goroutine below; nothing is delivered after Stop
+	}()
 
 	// Bubble Tea's own panic catch prints the stack to stderr, which a popup
 	// takes away with it; the panel catches its own panics, and this sends
 	// the backstop's output to a file that outlives the popup.
 	crashLog := filepath.Join(crashDir(uopts.CrashDir), "stderr-"+time.Now().Format("20060102-150405")+".log")
-	restore := redirectStderr(crashLog)
+	restore, ok := redirectStderr(crashLog)
+	if !ok {
+		crashLog = "" // stderr stayed where it was
+	}
 	defer restore()
 
 	popts := []tea.ProgramOption{tea.WithInput(in), tea.WithOutput(out), tea.WithContext(ctx), tea.WithoutSignalHandler()}
@@ -197,11 +213,18 @@ func run(ctx context.Context, uopts ui.Options, opts Options) error {
 		}
 	}()
 	_, err := p.Run()
+	// Quit cancelled the running commands; the group kill is sent from
+	// their own goroutines. Give it a moment before this process can exit.
+	m.WaitCommands(50 * time.Millisecond)
 	restore()
 	switch {
 	case errors.Is(err, tea.ErrProgramPanic):
 		notifyCrash(ctx, crashLog)
-		hold(in, out, "herdr-panel crashed; details are in "+crashLog)
+		msg := "herdr-panel crashed; details are in " + crashLog
+		if crashLog == "" {
+			msg = "herdr-panel crashed; details went to stderr"
+		}
+		hold(in, out, msg)
 		return ErrCrashed
 	case errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil:
 		return ctx.Err()
@@ -242,15 +265,23 @@ func crashDir(d string) string {
 	return d
 }
 
+// stderrMu is held by the one panel whose crash log os.Stderr points at:
+// os.Stderr belongs to the process, and two panels running at once would
+// each restore the other's file.
+var stderrMu sync.Mutex
+
 // redirectStderr points os.Stderr at a file for the program's lifetime, and
-// removes the file again if nothing was written to it.
-func redirectStderr(path string) func() {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return func() {}
+// removes the file again if nothing was written to it. It reports false,
+// and leaves os.Stderr alone, when it cannot, or when another panel in this
+// process holds it.
+func redirectStderr(path string) (restore func(), ok bool) {
+	if !stderrMu.TryLock() {
+		return func() {}, false
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600) //nolint:gosec // G304: our own log path
+	f, err := openLog(path)
 	if err != nil {
-		return func() {}
+		stderrMu.Unlock()
+		return func() {}, false
 	}
 	orig := os.Stderr
 	os.Stderr = f
@@ -261,12 +292,20 @@ func redirectStderr(path string) func() {
 		}
 		done = true
 		os.Stderr = orig
+		stderrMu.Unlock()
 		info, statErr := f.Stat()
 		_ = f.Close()
 		if statErr == nil && info.Size() == 0 {
 			_ = os.Remove(path)
 		}
+	}, true
+}
+
+func openLog(path string) (*os.File, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, err
 	}
+	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600) //nolint:gosec // G304: our own log path
 }
 
 // hold keeps a message on screen until a key is pressed (or 30 s pass): in a

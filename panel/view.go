@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -27,7 +28,12 @@ import (
 //     key, q and ? included, goes to the view.
 //   - [Click] when one of its regions is clicked, and [Focus] when it gains
 //     or loses the focus.
-//   - every message its own commands return, and only those.
+//   - every message its own commands return, and only those. A command
+//     returning a Bubble Tea event (a key, a mouse event, a window size,
+//     tea.Suspend) gets it back itself; requests to the runtime (a window
+//     title, the clipboard, tea.Raw) go to the runtime. The runtime's
+//     answers to such requests (a background colour, the clipboard's
+//     content) reach the panel, not the view.
 //
 // The panel calls Render and Update on one goroutine, never at the same
 // time. A command runs on its own goroutine, as in any Bubble Tea program;
@@ -102,6 +108,15 @@ type Theme struct {
 
 // DefaultTheme is the theme a panel uses when Options.Theme is nil.
 func DefaultTheme() Theme { return Theme(ui.DefaultTheme()) }
+
+// Tick is tea.Tick for a View: fn's message comes back to the View's
+// Update after d. Use it, not tea.Tick, for a View that polls: under
+// paneltest and observe, time stands still until the test advances it
+// (paneltest.Panel.Advance), where tea.Tick would sleep for real. Its command
+// only works inside a panel.
+func Tick(d time.Duration, fn func(time.Time) tea.Msg) tea.Cmd {
+	return func() tea.Msg { return ui.TickRequest{D: d, Fn: fn} }
+}
 
 // ErrNoView means a spec has a view section that Options.Views does not
 // supply. The herdr-panel binary supplies none.

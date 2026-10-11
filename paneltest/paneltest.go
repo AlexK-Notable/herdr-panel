@@ -23,6 +23,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -37,15 +38,22 @@ import (
 type Config struct {
 	// Width and Height are the terminal size; 80x24 when zero.
 	Width, Height int
-	// Options are the panel's options: views, theme, {ctx.*} values, Via.
-	// A nil Context means no herdr context, so a test does not depend on
-	// the environment it runs in.
-	Options panel.Options
+	// Views supply the spec's sections of kind "view", by name.
+	Views map[string]panel.View
+	// Theme styles the panel; nil uses panel.DefaultTheme.
+	Theme *panel.Theme
+	// Context supplies {ctx.*} values. nil means no herdr context, so a test
+	// does not depend on the environment it runs in.
+	Context map[string]string
+	// Via is passed to every command as PANEL_VIA.
+	Via string
 	// Stubs answer commands whose argv starts with Match. A command no stub
 	// matches succeeds with no output. Nothing is ever run.
 	Stubs []Stub
 	// Stores maps a store name to the file the test uses for it. A store
-	// left out gets a new, empty file in t.TempDir(), never the spec's path.
+	// left out gets a path in t.TempDir(), never the spec's: with no file
+	// when the spec lets the panel create it, else with an empty one, as the
+	// plugin would ship. The spec's create setting applies either way.
 	Stores map[string]string
 }
 
@@ -88,12 +96,9 @@ type Panel struct {
 // a frame depends only on what the test did.
 func New(tb testing.TB, s *spec.Spec, cfg Config) *Panel {
 	tb.Helper()
-	opts := cfg.Options
+	opts := panel.Options{Views: cfg.Views, Theme: cfg.Theme, Context: cfg.Context, Via: cfg.Via, CrashDir: tb.TempDir()}
 	if opts.Context == nil {
 		opts.Context = map[string]string{}
-	}
-	if opts.CrashDir == "" {
-		opts.CrashDir = tb.TempDir()
 	}
 	uopts, err := bridge.UIOptions(s, opts)
 	if err != nil {
@@ -112,9 +117,14 @@ func New(tb testing.TB, s *spec.Spec, cfg Config) *Panel {
 		path, ok := cfg.Stores[st.Name]
 		if !ok {
 			path = filepath.Join(dir, st.Name+".env")
+			if !st.Create {
+				if err := os.WriteFile(path, nil, 0o600); err != nil {
+					tb.Fatalf("paneltest: %v", err)
+				}
+			}
 		}
 		p.stores[st.Name] = path
-		uopts.Stores[st.Name] = &store.EnvFile{Path: path, Create: true}
+		uopts.Stores[st.Name] = &store.EnvFile{Path: path, Create: st.Create}
 	}
 	w, h := cfg.Width, cfg.Height
 	if w == 0 {
@@ -177,6 +187,15 @@ func (p *Panel) Paste(s string) {
 func (p *Panel) Resize(w, h int) {
 	p.t.Helper()
 	p.d.Resize(w, h)
+	p.check()
+}
+
+// Advance moves the panel's clock forward by d. Time stands still
+// otherwise: list polling and a View's panel.Tick fire only here, in the
+// order they fall due, including ticks re-armed on the way.
+func (p *Panel) Advance(d time.Duration) {
+	p.t.Helper()
+	p.d.Advance(d)
 	p.check()
 }
 

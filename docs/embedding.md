@@ -100,7 +100,9 @@ Update(tea.Msg) tea.Cmd
 returns lines, the clickable regions on them, and the line to keep on screen
 while focused. Regions are in cells from the start of the line, after any
 styling, so `lipgloss.Width` is the right ruler. A region past the end of its
-line, or overlapping an earlier one, is dropped.
+line, or overlapping an earlier one, is dropped. A region's `ID` is letters,
+digits, `_` and `-`, unique within the view; anything else is a programming
+error and shows the crash screen.
 
 **Update** receives:
 
@@ -124,6 +126,14 @@ Commands work as in any Bubble Tea program, with three differences:
   are offered first.
 - **A panic** in `Render`, `Update` or a command shows the panel's crash
   screen and writes a crash log. The popup does not vanish.
+
+**To poll, use `panel.Tick`**, not `tea.Tick`: its message comes back to
+the view the same way, and under `paneltest` and `observe` time stands still
+until the test advances it, where `tea.Tick` would sleep for real. Re-arm it
+from `Update` for a repeating poll.
+
+A view that has the focus when the panel starts is sent `panel.Focus{true}`
+then, as on any later focus change.
 
 Style with the theme you are given (`in.Theme.Focus`, `.Error`, `.Muted`…),
 not your own colours. The default theme uses the 16 ANSI colours, so the

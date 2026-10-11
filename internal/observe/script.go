@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/AlexK-Notable/herdr-panel/internal/ui"
 )
@@ -51,6 +52,7 @@ func (d *Driver) Snapshot(label string) Snapshot {
 //	type <text>       type text, a key per character
 //	paste <text>      paste text
 //	resize <W>x<H>    change the terminal size
+//	advance <dur>     move the clock forward ("5s"): polls and ticks fall due
 //	snapshot [label]  record the panel now
 //
 // Blank lines and lines starting with # are skipped. It stops at the first
@@ -83,10 +85,15 @@ func (d *Driver) RunScript(r io.Reader) ([]Snapshot, error) {
 			if err == nil {
 				d.Resize(w, h)
 			}
+		case "advance":
+			var dur time.Duration
+			if dur, err = time.ParseDuration(arg); err == nil {
+				d.Advance(dur)
+			}
 		case "snapshot":
 			snaps = append(snaps, d.Snapshot(arg))
 		default:
-			err = fmt.Errorf("unknown action %q (click, key, type, paste, resize, snapshot)", verb)
+			err = fmt.Errorf("unknown action %q (click, key, type, paste, resize, advance, snapshot)", verb)
 		}
 		if err != nil {
 			return snaps, fmt.Errorf("script line %d: %w", n, err)

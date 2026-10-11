@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
@@ -41,9 +42,26 @@ func New(opts ui.Options, w, h int) *Driver {
 // Model returns the panel.
 func (d *Driver) Model() *ui.Model { return d.m }
 
+// update delivers one message the way Bubble Tea does: the model Update
+// returns is the one used from then on, and after the program quits nothing
+// more is delivered.
+func (d *Driver) update(msg tea.Msg) tea.Cmd {
+	if d.Quit {
+		return nil
+	}
+	model, cmd := d.m.Update(msg)
+	m, ok := model.(*ui.Model)
+	if !ok || m == nil {
+		d.errors = append(d.errors, fmt.Sprintf("Update returned %T, not the panel; Bubble Tea would crash drawing it", model))
+		d.Quit = true
+		return nil
+	}
+	d.m = m
+	return cmd
+}
+
 func (d *Driver) send(msg tea.Msg) {
-	_, cmd := d.m.Update(msg)
-	d.run(cmd)
+	d.run(d.update(msg))
 }
 
 func (d *Driver) run(cmd tea.Cmd) {
@@ -72,10 +90,10 @@ func (d *Driver) run(cmd tea.Cmd) {
 		switch msg.(type) {
 		case nil:
 		case tea.QuitMsg:
-			d.Quit = true
+			d.Quit = true // Bubble Tea stops here; nothing queued is delivered
+			return
 		default:
-			_, next := d.m.Update(msg)
-			queue = append(queue, next)
+			queue = append(queue, d.update(msg))
 		}
 	}
 }
@@ -106,6 +124,10 @@ func (d *Driver) Type(s string) {
 		d.Send(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
 }
+
+// Advance moves the panel's clock forward by dur. Time stands still
+// otherwise: list polling and a view's panel.Tick fire only here, in order.
+func (d *Driver) Advance(dur time.Duration) { d.Send(ui.Advance{D: dur}) }
 
 // Paste pastes text the way a terminal with bracketed paste does.
 func (d *Driver) Paste(s string) { d.Send(tea.PasteMsg{Content: s}) }

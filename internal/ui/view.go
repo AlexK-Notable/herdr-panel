@@ -132,11 +132,13 @@ func (m *Model) finish(lines []line, overlay *overlay) tea.View {
 	if overlay != nil {
 		all = append(all, overlay.layers...)
 		for _, e := range overlay.elements {
-			addElement(f, elems, e)
+			if e.X < w && e.Y < h { // never report what is off screen
+				addElement(f, elems, e)
+			}
 		}
 	}
 	f.comp = lipgloss.NewCompositor(all...)
-	f.content = f.comp.Render()
+	f.content = crop(f.comp.Render(), w, h)
 	m.frame = f
 	v := tea.NewView(f.content)
 	v.AltScreen = true
@@ -162,7 +164,7 @@ func (m *Model) render() ([]line, *overlay) {
 	switch {
 	case m.crash != nil:
 		return m.crashLines(), nil
-	case m.width < MinWidth || m.height < MinHeight:
+	case m.tooSmall():
 		return []line{{plain(fmt.Sprintf("make me bigger %dx%d", m.width, m.height))}}, nil
 	case m.spec == nil:
 		return m.loadErrorLines(), nil
@@ -201,7 +203,7 @@ func (m *Model) keepFocusVisible(body []line, bodyH int) {
 		}
 	}
 	maxScroll := max(0, len(body)-bodyH)
-	if target >= 0 {
+	if target >= 0 && !m.freeScroll {
 		if target < m.scroll {
 			m.scroll = target
 		}
@@ -568,7 +570,11 @@ func (m *Model) crashLines() []line {
 
 func (m *Model) loadErrorLines() []line {
 	th := m.theme
-	out := []line{{plain(" " + th.Error.Render("This panel's spec has problems:"))}, nil}
+	head := "This panel cannot start:"
+	if spec.IsSpecError(m.opts.LoadErr) {
+		head = "This panel's spec has problems:"
+	}
+	out := []line{{plain(" " + th.Error.Render(head))}, nil}
 	msg := "no spec"
 	if m.opts.LoadErr != nil {
 		msg = m.opts.LoadErr.Error()
@@ -594,25 +600,53 @@ func (m *Model) dialogOverlay() *overlay {
 	d := m.dialog
 	boxW := min(m.width-4, 64)
 	innerW := boxW - 4
-	var lines []line
-	lines = append(lines, line{plain(th.DialogTitle.Render(d.title))}, nil)
+	avail := max(1, m.height-2) // rows inside the border
+	more := func(n int, where string) line {
+		return line{plain(th.Muted.Render(fmt.Sprintf("… %d more %s", n, where)))}
+	}
+	lines := []line{{plain(th.DialogTitle.Render(d.title))}, nil}
+	var text []line
 	if d.text != "" {
 		for l := range strings.SplitSeq(lipgloss.NewStyle().Width(innerW).Render(d.text), "\n") {
-			lines = append(lines, line{plain(l)})
+			text = append(text, line{plain(l)})
 		}
-		lines = append(lines, nil)
 	}
-	var btnLine line
 	switch d.kind {
 	case dialogPicker:
-		for i, o := range d.options {
+		if len(text) > 0 {
+			lines = append(append(lines, text...), nil)
+		}
+		// The options get what is left, windowed around the cursor.
+		sp := spanAt(len(d.options), max(1, avail-len(lines)), d.cursor-(avail-len(lines)-2)/2)
+		if sp.above {
+			lines = append(lines, more(sp.start, "above"))
+		}
+		for i := sp.start; i < sp.end; i++ {
+			o := d.options[i]
 			text, mark := o, "  "
 			if i == d.cursor {
 				text, mark = th.Focus.Render(o), "▸ "
 			}
 			lines = append(lines, line{plain(mark), seg{text: text, id: "option:" + strconv.Itoa(i), kind: "option", label: o}})
 		}
+		if sp.below {
+			lines = append(lines, more(len(d.options)-sp.end, "below"))
+		}
 	default:
+		// The text scrolls (help: ↑ ↓ PgUp PgDn); the buttons stay.
+		if len(text) > 0 {
+			sp := spanAt(len(text), max(1, avail-len(lines)-2), d.scroll)
+			d.scroll = sp.start
+			if sp.above {
+				lines = append(lines, more(sp.start, "above (↑)"))
+			}
+			lines = append(lines, text[sp.start:sp.end]...)
+			if sp.below {
+				lines = append(lines, more(len(text)-sp.end, "below (↓)"))
+			}
+			lines = append(lines, nil)
+		}
+		var btnLine line
 		for i, b := range d.buttons {
 			st := th.Button
 			if i == d.cursor {
@@ -621,6 +655,9 @@ func (m *Model) dialogOverlay() *overlay {
 			btnLine = append(btnLine, seg{text: st.Render("[" + b + "]"), id: "dialog:" + strconv.Itoa(i), kind: "dialog-button", label: b}, plain(" "))
 		}
 		lines = append(lines, btnLine)
+	}
+	if len(lines) > avail {
+		lines = lines[:avail] // only when the panel is barely tall enough
 	}
 	boxH := len(lines) + 2
 	x0 := max(0, (m.width-boxW)/2)
@@ -651,4 +688,49 @@ func (m *Model) dialogOverlay() *overlay {
 	ov.layers = append([]*lipgloss.Layer{lipgloss.NewLayer(box.String()).ID("dialog").X(x0).Y(y0).Z(100)}, ov.layers...)
 	ov.elements = append([]Element{{ID: "dialog", Kind: "dialog", Label: d.title, X: x0, Y: y0, W: boxW, H: boxH}}, ov.elements...)
 	return ov
+}
+
+// span is the part of n lines that fits in rows rows, starting near start.
+// When lines are hidden, a marker line takes one row at that end.
+type span struct {
+	start, end   int
+	above, below bool
+}
+
+func spanAt(n, rows, start int) span {
+	if n <= rows {
+		return span{end: n}
+	}
+	if rows < 3 { // no room for markers
+		start = min(max(0, start), n-rows)
+		return span{start: start, end: start + rows}
+	}
+	s := span{start: min(max(0, start), n-(rows-1))} // the last page needs only the top marker
+	s.above = s.start > 0
+	room := rows
+	if s.above {
+		room--
+	}
+	if s.start+room >= n {
+		s.end = n
+	} else {
+		s.below, s.end = true, s.start+room-1
+	}
+	return s
+}
+
+func (m *Model) tooSmall() bool { return m.width < MinWidth || m.height < MinHeight }
+
+// crop cuts a rendered frame to w cells by h lines.
+func crop(s string, w, h int) string {
+	ls := strings.Split(s, "\n")
+	if len(ls) > h {
+		ls = ls[:h]
+	}
+	for i, l := range ls {
+		if ansi.StringWidth(l) > w {
+			ls[i] = ansi.Truncate(l, w, "")
+		}
+	}
+	return strings.Join(ls, "\n")
 }

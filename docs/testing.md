@@ -13,7 +13,7 @@ Both identify what is on screen by **element id**:
 | `field:<id>` | a settings field |
 | `test:<id>` | a secret field's test button |
 | `list:<section>` | a list (its filter, its selection) |
-| `row:<section>:<row>` | a row, by position on screen |
+| `row:<section>:<row>` | a row, by its index in the list as filtered (not its line on screen: after scrolling, the first row drawn may be `row:1:12`) |
 | `rowaction:<section>:<n>` | a row action's button |
 | `button:<section>:<n>` | a button |
 | `view:<name>:<region>` | a region of a view |
@@ -57,10 +57,13 @@ prints the frame, every element with its box, the focus and the status.
   type hello
   paste some text
   resize 60x20
+  advance 5s
   snapshot after-save
   ```
 
-  Each `snapshot` adds a frame to the output.
+  Each `snapshot` adds a frame to the output. Time stands still in
+  `observe`: `advance` moves the clock, and the list polls and view ticks
+  that fall due in that span run, in order.
 
 The JSON has `"observe": 1`, its format version. Fields are only added
 within version 1.
@@ -91,13 +94,21 @@ func TestSettings(t *testing.T) {
   `PANEL_*` variables.
 - **Stores live in `t.TempDir()`**, never at the spec's path, unless
   `Config.Stores` names a file. `p.StorePath` and `p.StoreText` read them.
-- **Timers are off**, so a frame depends only on what the test did. A list
-  shows its source's rows from startup, and refreshes after actions.
-- **Views** go in `Config.Options.Views`, as for `panel.Run`.
+- **Time stands still**, so a frame depends only on what the test did. A
+  list shows its source's rows from startup, and refreshes after actions.
+  `p.Advance(d)` moves the clock: list polls (`every_s`) and a view's
+  `panel.Tick` that fall due run, in order, including ticks re-armed on the
+  way. A view that uses `tea.Tick` instead sleeps for real and cannot be
+  driven; use `panel.Tick`.
+- **A store's `create` setting applies.** A store not named in
+  `Config.Stores` starts with no file when the spec lets the panel create
+  it, else with an empty one, as a plugin would ship it.
+- **Views** go in `Config.Views`, as in `panel.Options`; so do `Theme`,
+  `Context` and `Via`.
 - **Every method fails the test** on error: an element not on screen, an
   unknown key name, a crash inside the panel.
 - **Golden frames**: `p.Golden()` compares the frame with
   `testdata/<test name>.golden`. Set `PANELTEST_UPDATE=1` to write it.
 
-`Config.Options.Context` defaults to an empty map, not herdr's environment,
+`Config.Context` defaults to an empty map, not herdr's environment,
 so a test gives the same result inside and outside herdr.

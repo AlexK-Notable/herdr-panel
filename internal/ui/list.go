@@ -28,7 +28,8 @@ type listState struct {
 	loaded   bool
 	err      string
 	loading  bool
-	seq      int // the newest request; older answers are dropped
+	stale    bool // a refresh was asked for while loading: run it after
+	seq      int  // the newest request; older answers are dropped
 	tickGen  int
 	failures int
 	selID    string
@@ -44,6 +45,7 @@ type textState struct {
 	loaded   bool
 	err      string
 	loading  bool
+	stale    bool
 	seq      int
 	tickGen  int
 	failures int
@@ -70,7 +72,11 @@ type tickMsg struct {
 // a slow source never piles up overlapping runs.
 func (m *Model) refreshList(i int) tea.Cmd {
 	ls := m.lists[i]
-	if ls == nil || ls.loading || ls.sec.Source == nil {
+	if ls == nil || ls.sec.Source == nil {
+		return nil
+	}
+	if ls.loading {
+		ls.stale = true // what is loading may predate what changed
 		return nil
 	}
 	argv, err := spec.ExpandArgv(ls.sec.Source.Argv, m.values(nil), m.spec.Dir)
@@ -109,6 +115,10 @@ func (m *Model) onRows(msg rowsMsg) tea.Cmd {
 		ls.err, ls.failures, ls.loaded = "", 0, true
 		ls.rows = msg.rows
 		ls.reselect()
+	}
+	if ls.stale {
+		ls.stale = false
+		return m.refreshList(msg.sec)
 	}
 	return m.scheduleTick(msg.sec, false)
 }
@@ -178,13 +188,13 @@ func (m *Model) scheduleTick(sec int, text bool) tea.Cmd {
 		ls := m.lists[sec]
 		every, gen, failures = ls.sec.Every, &ls.tickGen, ls.failures
 	}
-	if every <= 0 || m.opts.NoTimers || m.quitting {
+	if every <= 0 || m.quitting {
 		return nil
 	}
 	*gen++
 	g := *gen
 	delay := every << min(failures, 4)
-	return tea.Tick(delay, func(time.Time) tea.Msg { return tickMsg{sec: sec, gen: g, text: text} })
+	return m.after(delay, "", func(time.Time) tea.Msg { return tickMsg{sec: sec, gen: g, text: text} })
 }
 
 func (m *Model) onTick(msg tickMsg) tea.Cmd {
@@ -202,7 +212,11 @@ func (m *Model) onTick(msg tickMsg) tea.Cmd {
 
 func (m *Model) refreshText(i int) tea.Cmd {
 	ts := m.texts[i]
-	if ts == nil || ts.loading {
+	if ts == nil {
+		return nil
+	}
+	if ts.loading {
+		ts.stale = true
 		return nil
 	}
 	argv, err := spec.ExpandArgv(ts.sec.Source.Argv, m.values(nil), m.spec.Dir)
@@ -234,6 +248,10 @@ func (m *Model) onText(msg textMsg) tea.Cmd {
 		ts.failures++
 	} else {
 		ts.err, ts.failures, ts.loaded, ts.text = "", 0, true, msg.text
+	}
+	if ts.stale {
+		ts.stale = false
+		return m.refreshText(msg.sec)
 	}
 	return m.scheduleTick(msg.sec, true)
 }

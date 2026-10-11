@@ -47,6 +47,9 @@ func LoadStubs(path string) (*Stubs, error) {
 type Call struct {
 	Argv []string `json:"argv"`
 	Env  []string `json:"env,omitempty"`
+	// Cancelled means the panel's context had ended, so the real runner
+	// would have refused to start the command.
+	Cancelled bool `json:"cancelled,omitempty"`
 }
 
 // Sandbox runs nothing: it records each command and answers from stubs, or
@@ -58,10 +61,16 @@ type Sandbox struct {
 }
 
 // Run implements run.Runner.
-func (s *Sandbox) Run(_ context.Context, req run.Request) run.Result {
+func (s *Sandbox) Run(ctx context.Context, req run.Request) run.Result {
 	s.mu.Lock()
-	s.calls = append(s.calls, Call{Argv: append([]string(nil), req.Argv...), Env: panelEnv(req.Env)})
+	s.calls = append(s.calls, Call{Argv: append([]string(nil), req.Argv...), Env: panelEnv(req.Env), Cancelled: ctx.Err() != nil})
 	s.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		// As the real runner: a cancelled panel runs nothing.
+		res := run.Result{Err: fmt.Errorf("cancelled: %w", err)}
+		run.Interpret(&res)
+		return res
+	}
 	st := s.match(req.Argv)
 	res := run.Result{Stdout: []byte(st.Stdout), Stderr: []byte(st.Stderr), ExitCode: st.Exit}
 	if st.Exit != 0 {

@@ -338,3 +338,63 @@ func TestKeyNamesRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+// Save and close runs the store's apply before closing: closing first would
+// cancel it before it started (the sandbox, like the real runner, refuses a
+// cancelled context).
+func TestSaveAndCloseAppliesFirst(t *testing.T) {
+	t.Parallel()
+	f := open(t, settings, "")
+	f.click("field:ON")
+	f.key("esc")
+	f.click("dialog:0") // Save and close
+	if f.fileText() != "ON=false\n" {
+		t.Errorf("file = %q", f.fileText())
+	}
+	calls := f.sb.Calls()
+	if len(calls) != 1 || calls[0].Argv[0] != "restart-it" || calls[0].Cancelled {
+		t.Fatalf("apply did not run before the close: %+v", calls)
+	}
+	if !f.d.Quit {
+		t.Error("the panel did not close after saving and applying")
+	}
+}
+
+// A failed apply keeps the panel open on "saved, not applied".
+func TestSaveAndCloseStaysOpenWhenApplyFails(t *testing.T) {
+	t.Parallel()
+	f := open(t, settings, "", observe.Stub{Match: []string{"restart-it"}, Stderr: "daemon not running", Exit: 1})
+	f.click("field:ON")
+	f.key("esc")
+	f.click("dialog:0")
+	if f.d.Quit {
+		t.Fatal("closed over a failed apply")
+	}
+	f.expectFrame("✗ saved, not applied: daemon not running")
+}
+
+// A click elsewhere while typing keeps the value, as tab does: clicking
+// Save straight after typing saves what was typed.
+func TestClickSaveWhileTypingKeepsTheValue(t *testing.T) {
+	t.Parallel()
+	f := open(t, settings, "")
+	f.click("field:NAME")
+	f.d.Type("hello")
+	f.click("save")
+	if f.fileText() != "NAME=hello\n" {
+		t.Errorf("file = %q; status %q", f.fileText(), f.d.Model().Status())
+	}
+}
+
+// An invalid value keeps the editor open and the click does nothing.
+func TestClickAwayFromInvalidValueKeepsEditing(t *testing.T) {
+	t.Parallel()
+	f := open(t, settings, "")
+	f.click("field:NAME")
+	f.d.Type("Bad Name")
+	f.click("save")
+	f.expectFrame("does not match")
+	if f.fileText() != "" || f.d.Model().Focused() != "field:NAME" {
+		t.Errorf("file %q, focus %q", f.fileText(), f.d.Model().Focused())
+	}
+}

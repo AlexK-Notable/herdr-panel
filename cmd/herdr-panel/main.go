@@ -132,7 +132,7 @@ func observeCmd(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("observe", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	size := fs.String("size", "80x24", "terminal size, WIDTHxHEIGHT")
-	script := fs.String("script", "", "a file of actions to run (click, key, type, paste, resize, snapshot); - for stdin")
+	script := fs.String("script", "", "a file of actions to run (click, key, type, paste, resize, advance, snapshot); - for stdin")
 	sandbox := fs.Bool("sandbox", false, "run no commands, and write stores to temporary copies")
 	stubFile := fs.String("stub", "", "JSON answers for commands in the sandbox (implies --sandbox)")
 	asJSON := fs.Bool("json", false, "print JSON (version 1) instead of the frame")
@@ -271,7 +271,7 @@ func sandboxStores(s *spec.Spec, ctxValues map[string]string, tmp string) (map[s
 				}
 			}
 		}
-		out[st.Name] = &store.EnvFile{Path: dst, Create: true}
+		out[st.Name] = &store.EnvFile{Path: dst, Create: st.Create} // a missing file stays missing, as it would for real
 	}
 	return out, nil
 }

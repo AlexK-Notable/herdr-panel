@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -72,9 +73,13 @@ type counter struct {
 	n       int
 	focused bool
 	got     []string // what Update received, for the tests
+	bumps   []int    // bumped messages, in arrival order
+	ticks   []time.Time
 }
 
 type bumped struct{ by int }
+
+type ticked struct{ at time.Time }
 
 func (c *counter) Render(in panel.RenderInput) panel.RenderOutput {
 	mark := " "
@@ -113,11 +118,21 @@ func (c *counter) Update(msg tea.Msg) tea.Cmd {
 			return tea.Quit
 		case "p":
 			return func() tea.Msg { panic("view command exploded") }
+		case "t": // poll every second
+			return c.tick()
 		}
 	case bumped:
 		c.n += m.by
+		c.bumps = append(c.bumps, m.by)
+	case ticked:
+		c.ticks = append(c.ticks, m.at)
+		return c.tick()
 	}
 	return nil
+}
+
+func (c *counter) tick() tea.Cmd {
+	return panel.Tick(time.Second, func(t time.Time) tea.Msg { return ticked{t} })
 }
 
 func bump(by int) tea.Cmd { return func() tea.Msg { return bumped{by} } }
@@ -139,7 +154,7 @@ func counterPanel(t *testing.T) (*paneltest.Panel, *counter) {
 	t.Helper()
 	c := &counter{}
 	p := paneltest.New(t, load(t, withView), paneltest.Config{
-		Options: panel.Options{Views: map[string]panel.View{"counter": c}},
+		Views: map[string]panel.View{"counter": c},
 	})
 	return p, c
 }
@@ -196,6 +211,9 @@ func TestViewCommandsComeBack(t *testing.T) {
 	if c.n != 114 {
 		t.Errorf("after a sequence n = %d, want 114", c.n)
 	}
+	if got := c.bumps[len(c.bumps)-2:]; !slices.Equal(got, []int{1, 2}) {
+		t.Errorf("a sequence arrived as %v, want [1 2]", got)
+	}
 	i := slices.Index(c.got, "paneltest_test.bumped")
 	if i < 0 {
 		t.Errorf("the view never received its own message: %v", c.got)
@@ -232,4 +250,59 @@ func TestPanelKeysStayWithThePanel(t *testing.T) {
 	if slices.Contains(c.got, "tea.KeyPressMsg") {
 		t.Errorf("a panel key reached the view: %v", c.got)
 	}
+}
+
+func TestViewTicksFollowTheTestClock(t *testing.T) {
+	t.Parallel()
+	p, c := counterPanel(t)
+	p.Click("view:counter:inc")
+	start := time.Now()
+	p.Key("t")
+	if len(c.ticks) != 0 {
+		t.Fatalf("a tick arrived before time moved: %v", c.ticks)
+	}
+	p.Advance(3500 * time.Millisecond)
+	if len(c.ticks) != 3 {
+		t.Fatalf("after 3.5 s, %d ticks, want 3", len(c.ticks))
+	}
+	for i, at := range c.ticks {
+		if want := time.Duration(i+1) * time.Second; at.Sub(c.ticks[0].Add(-time.Second)) != want {
+			t.Errorf("tick %d at %v, want +%v", i, at, want)
+		}
+	}
+	p.Advance(500 * time.Millisecond) // the re-armed fourth falls due at 4 s
+	if len(c.ticks) != 4 {
+		t.Errorf("after 4 s, %d ticks, want 4", len(c.ticks))
+	}
+	if took := time.Since(start); took > time.Second {
+		t.Errorf("the ticks slept for real: %v", took)
+	}
+}
+
+func TestViewFocusedFromTheStartIsTold(t *testing.T) {
+	t.Parallel()
+	c := &counter{}
+	src := strings.Replace(withView, "fields = [ { key = \"ON\", type = \"bool\", label = \"Enabled\", default = true } ]\n[[section]]\n", "", 1)
+	p := paneltest.New(t, load(t, src), paneltest.Config{
+		Views: map[string]panel.View{"counter": c},
+	})
+	if p.Focused() != "view:counter" || !c.focused {
+		t.Errorf("focus %q, view told %v", p.Focused(), c.focused)
+	}
+}
+
+func TestStoreCreateComesFromTheSpec(t *testing.T) {
+	t.Parallel()
+	src := strings.Replace(settings, `apply = ["restart-it"]`, "create = false", 1)
+	p := paneltest.New(t, load(t, src), paneltest.Config{}) // an empty file stands in for the shipped one
+	p.Click("field:ON")
+	p.Key("ctrl+s")
+	if got := p.StoreText("c"); got != "ON=false\n" {
+		t.Fatalf("store = %q", got)
+	}
+	missing := t.TempDir() + "/gone.env"
+	q := paneltest.New(t, load(t, src), paneltest.Config{Stores: map[string]string{"c": missing}})
+	q.Click("field:ON")
+	q.Key("ctrl+s")
+	q.RequireFrame("save failed")
 }

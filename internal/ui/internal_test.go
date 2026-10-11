@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -64,6 +65,36 @@ func TestStaleAnswerDropped(t *testing.T) {
 	m.onRows(rowsMsg{sec: 0, seq: 5, rows: []row{{id: "new", vals: map[string]string{"name": "new"}}}})
 	if len(ls.rows) != 1 || ls.rows[0].id != "new" {
 		t.Errorf("rows = %+v", ls.rows)
+	}
+}
+
+// A refresh asked for while a load is out (after a row action, say) runs
+// once that load answers: the load may predate the change.
+func TestRefreshDuringALoadRunsAfterIt(t *testing.T) {
+	t.Parallel()
+	m := newList(t, `[]`)
+	first := m.refreshList(0)
+	if m.refreshList(0) != nil {
+		t.Fatal("two loads at once")
+	}
+	msg, ok := first().(rowsMsg)
+	if !ok {
+		t.Fatalf("the load answered %T", first())
+	}
+	if m.onRows(msg) == nil {
+		t.Fatal("the refresh asked for during the load was dropped")
+	}
+	if m.lists[0].stale || !m.lists[0].loading {
+		t.Error("the follow-up refresh did not start")
+	}
+}
+
+func TestStatusDropsEscapes(t *testing.T) {
+	t.Parallel()
+	m := newList(t, `[]`)
+	m.setStatus(statusErr, "✗ %s", "bad\x1b[2J\x1b]0;title\x07\nnews")
+	if m.status.text != "✗ bad news" {
+		t.Errorf("status = %q", m.status.text)
 	}
 }
 
@@ -140,8 +171,15 @@ func TestPanicInUpdateShowsCrashScreen(t *testing.T) {
 	m := New(Options{Spec: s, NoTimers: true, CrashDir: t.TempDir()})
 	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
 	m.Update(rowsMsg{sec: 0, seq: m.lists[0].seq, rows: []row{{id: "x"}}}) // nil vals map is fine
-	m.lists = nil                                                          // make the next list message panic
-	m.Update(rowsMsg{sec: 0})
+	// onRows reaches ls.sec.Every: a panic inside Update, not View.
+	m.lists[0].sec = nil
+	got, _ := m.Update(rowsMsg{sec: 0, seq: m.lists[0].seq})
+	if m.crash == nil {
+		t.Fatal("the message did not panic inside Update; the test proves nothing")
+	}
+	if got != m {
+		t.Fatalf("after a panic Update returned %v; Bubble Tea would draw that, not the crash screen", got)
+	}
 	m.View()
 	if !strings.Contains(m.Frame(), "herdr-panel crashed") {
 		t.Fatalf("frame:\n%s", m.Frame())
@@ -170,5 +208,114 @@ func TestFormatAndParseDuration(t *testing.T) {
 	}
 	if _, err := parseDuration("1.5s"); err == nil {
 		t.Error("accepted a fractional second")
+	}
+}
+
+const liveSpec = `spec = 1
+title = "Live"
+save = "live"
+[stores.c]
+kind = "envfile"
+path = "c.env"
+create = true
+[[section]]
+fields = [ { key = "A", type = "int", label = "A" }, { key = "B", type = "int", label = "B" } ]
+`
+
+// runAll runs a command and everything it leads to, synchronously.
+func runAll(m *Model, cmd tea.Cmd) {
+	for queue := []tea.Cmd{cmd}; len(queue) > 0; {
+		c := queue[0]
+		queue = queue[1:]
+		if c == nil {
+			continue
+		}
+		msg := c()
+		if cmds, _, ok := Unpack(msg); ok {
+			queue = append(queue, cmds...)
+			continue
+		}
+		if msg != nil {
+			_, next := m.Update(msg)
+			queue = append(queue, next)
+		}
+	}
+}
+
+func liveModel(t *testing.T) *Model {
+	t.Helper()
+	dir := t.TempDir()
+	s, err := spec.Parse([]byte(liveSpec), "t.toml", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(Options{Spec: s, NoTimers: true, Runner: fixedRunner{}, CrashDir: dir})
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	runAll(m, m.Init())
+	return m
+}
+
+// In live mode, an edit made while the previous save is in flight is saved
+// too, once that save lands.
+func TestLiveEditDuringSaveIsSaved(t *testing.T) {
+	t.Parallel()
+	m := liveModel(t)
+	a, b := m.spec.Fields()[0], m.spec.Fields()[1]
+	first := m.setField(a, "1", false)
+	if second := m.setField(b, "2", false); second != nil {
+		t.Fatal("a second save started while the first was in flight")
+	}
+	runAll(m, first)
+	data, _ := os.ReadFile(m.stores["c"].path)
+	if string(data) != "A=1\nB=2\n" || m.Dirty() != 0 {
+		t.Errorf("file %q, %d unsaved", data, m.Dirty())
+	}
+}
+
+// A load that read the file before a save wrote it, but answers after the
+// save, must not put the old values back (and then fake a conflict).
+func TestStaleLoadAfterSaveIsDropped(t *testing.T) {
+	t.Parallel()
+	m := liveModel(t)
+	a := m.spec.Fields()[0]
+	stale := m.loadStore("c")() // reads the file before the save
+	runAll(m, m.setField(a, "7", false))
+	m.Update(stale)
+	if v, src := m.fieldValue(a); v != "7" || src != fromStore {
+		t.Fatalf("after the stale load A = %q (source %d)", v, src)
+	}
+	runAll(m, m.setField(a, "8", false))
+	if m.dialog != nil {
+		t.Errorf("the panel's own save looked like a conflict: %q", m.dialog.title)
+	}
+}
+
+// slowStop answers a cancel only after a while, as a process group does
+// while it is being killed.
+type slowStop struct{ stopped *atomic.Bool }
+
+func (s slowStop) Run(ctx context.Context, _ run.Request) run.Result {
+	<-ctx.Done()
+	time.Sleep(20 * time.Millisecond)
+	s.stopped.Store(true)
+	return run.Result{}
+}
+
+func TestWaitCommandsOutlastsTheKill(t *testing.T) {
+	t.Parallel()
+	s, _ := spec.Parse([]byte(listOnly), "t.toml", t.TempDir())
+	stopped := &atomic.Bool{}
+	m := New(Options{Spec: s, Runner: slowStop{stopped}, NoTimers: true})
+	cmd := m.refreshList(0)
+	go cmd()
+	for m.running.Load() == 0 {
+		time.Sleep(time.Millisecond)
+	}
+	m.Quit()
+	if !m.WaitCommands(time.Second) || !stopped.Load() {
+		t.Fatal("WaitCommands returned before the command ended")
+	}
+	if !m.WaitCommands(0) {
+		t.Error("nothing is running, yet WaitCommands timed out")
 	}
 }

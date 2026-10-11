@@ -69,16 +69,30 @@ func (m *Model) moveFocus(delta int) {
 type QuitRequest struct{}
 
 // Update implements tea.Model. A panic in it becomes the crash screen.
-func (m *Model) Update(msg tea.Msg) (_ tea.Model, cmd tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 	defer func() {
 		if r := recover(); r != nil {
 			m.crash = m.recordCrash(r)
-			cmd = nil
+			// Bubble Tea draws whatever model is returned: after a panic it
+			// must still be this one, showing the crash screen.
+			model, cmd = m, nil
 		}
 	}()
-	prev := m.focus
+	prev, prevPin := m.focus, m.pinKey()
 	cmd = m.update(msg)
+	if m.pinKey() != prevPin {
+		m.freeScroll = false // the focus moved: show it again
+	}
 	return m, tea.Batch(cmd, m.viewFocusChange(prev))
+}
+
+// pinKey names what the body scroll follows: the focus, and in a list the
+// selected row.
+func (m *Model) pinKey() string {
+	if ls := m.focusedList(); ls != nil {
+		return m.focus + "/" + strconv.Itoa(ls.sel)
+	}
+	return m.focus
 }
 
 func (m *Model) update(msg tea.Msg) tea.Cmd {
@@ -94,7 +108,14 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	case viewClose:
 		return m.close()
 	case viewMsg:
+		if r, ok := msg.msg.(TickRequest); ok {
+			return m.after(r.D, msg.name, r.Fn)
+		}
 		return m.toView(msg.name, msg.msg)
+	case Advance:
+		return m.advanceTo(m.clock + max(0, msg.D))
+	case advanceTo:
+		return m.advanceTo(msg.at)
 	case loadedMsg:
 		return m.onLoaded(msg)
 	case savedMsg:
@@ -178,6 +199,25 @@ func (m *Model) key(k string) tea.Cmd {
 	return m.panelKey(k)
 }
 
+// commitEdit ends the edit the way leaving a form field does: the value is
+// kept. An invalid value keeps the editor open with its error, so typing is
+// never silently lost; ok is then false. An empty secret editor changes
+// nothing.
+func (m *Model) commitEdit() (tea.Cmd, bool) {
+	e := m.editing
+	v, err := normalize(e.field, e.ed.String())
+	empty := e.field.Type == spec.Secret && e.ed.String() == ""
+	if err != nil && !empty {
+		e.ed.errMsg = err.Error()
+		return nil, false
+	}
+	m.editing = nil
+	if empty {
+		return nil, true
+	}
+	return m.setField(e.field, v, false), true
+}
+
 func (m *Model) editKey(k string) tea.Cmd {
 	e := m.editing
 	switch k {
@@ -197,17 +237,9 @@ func (m *Model) editKey(k string) tea.Cmd {
 		m.editing = nil
 		return nil
 	case "tab", "shift+tab", "up", "down":
-		// Leaving the field commits it, as a form would; an invalid value
-		// keeps the editor open so it is never silently lost.
-		v, err := normalize(e.field, e.ed.String())
-		if err != nil && (e.field.Type != spec.Secret || e.ed.String() != "") {
-			e.ed.errMsg = err.Error()
+		cmd, ok := m.commitEdit()
+		if !ok {
 			return nil
-		}
-		m.editing = nil
-		var cmd tea.Cmd
-		if e.field.Type != spec.Secret || e.ed.String() != "" {
-			cmd = m.setField(e.field, v, false)
 		}
 		if k == "tab" || k == "down" {
 			m.moveFocus(1)
@@ -514,9 +546,21 @@ func (m *Model) click(x, y int) tea.Cmd {
 		}
 		return nil
 	}
+	var committed tea.Cmd
 	if m.editing != nil && id != "field:"+m.editing.field.ID {
-		m.editing = nil // a click elsewhere abandons the edit, as esc does
+		// A click elsewhere leaves the field as tab does: the value is kept,
+		// and an invalid one keeps the editor open and swallows the click.
+		cmd, ok := m.commitEdit()
+		if !ok {
+			return nil
+		}
+		committed = cmd
 	}
+	return tea.Batch(committed, m.clickTarget(id, x, y))
+}
+
+// clickTarget acts on a click on the element id.
+func (m *Model) clickTarget(id string, x, y int) tea.Cmd {
 	switch kind, rest, _ := strings.Cut(id, ":"); kind {
 	case "":
 		return nil
@@ -548,7 +592,17 @@ func (m *Model) wheel(x, y int, up bool) tea.Cmd {
 	if up {
 		delta = -1
 	}
-	if m.frame != nil && m.dialog == nil {
+	if d := m.dialog; d != nil {
+		switch d.kind {
+		case dialogHelp:
+			d.scroll += delta
+		case dialogPicker:
+			d.cursor = min(max(0, d.cursor+delta), len(d.options)-1)
+		case dialogConfirm: // its buttons sit on one line: nothing to scroll
+		}
+		return nil // the body behind a dialog does not move
+	}
+	if m.frame != nil {
 		id := m.frame.hit(x, y)
 		if kind, rest, _ := strings.Cut(id, ":"); kind == "row" || kind == "list" {
 			first, _, _ := strings.Cut(rest, ":")
@@ -560,6 +614,7 @@ func (m *Model) wheel(x, y int, up bool) tea.Cmd {
 		}
 	}
 	m.scroll = max(0, m.scroll+delta)
+	m.freeScroll = true
 	return nil
 }
 
@@ -579,4 +634,5 @@ func (m *Model) scrollKey(k string) {
 		m.scroll = 1 << 20
 	}
 	m.scroll = max(0, m.scroll)
+	m.freeScroll = true
 }

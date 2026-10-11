@@ -25,3 +25,14 @@ may break the spec or the Go API, and every such break is listed under
 - `paneltest`: the same from a Go test, with golden frames.
 - Experimental: `panel.View`, a section drawn by Go code, placed by `kind = "view"`.
   Docs: `docs/embedding.md`, `docs/testing.md`, `docs/security.md`.
+- `panel.Tick` for views that poll; `paneltest.Panel.Advance` and observe's `advance`
+  move a test clock that list polling and view ticks follow.
+- Dialogs fit small screens (scrolling text, windowed pickers); the wheel and PgDn scroll
+  the panel.
+- `herdr` package: the socket client, `Open` for popups and overlays, `ClosePopup`,
+  `Notify`.
+
+### Breaking
+
+- `paneltest.Config.Options` is replaced by `Views`, `Theme`, `Context` and `Via`; the
+  terminal size stays in `Width`/`Height`.

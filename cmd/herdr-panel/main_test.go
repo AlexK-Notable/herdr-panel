@@ -79,7 +79,8 @@ func TestViewSpecNeedsAProgram(t *testing.T) {
 	}{
 		{[]string{"validate", p}, exitOK},
 		{[]string{"observe", p}, exitRuntime},
-		{[]string{p}, exitRuntime},
+		// Running it shows the refusal on screen first; panel's
+		// TestMissingViewIsShownThenRefused covers that path.
 	} {
 		var stdout, stderr bytes.Buffer
 		got := run(c.args, &stdout, &stderr)

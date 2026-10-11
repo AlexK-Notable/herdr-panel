@@ -25,6 +25,8 @@ type dialog struct {
 	buttons  []string
 	options  []string // dialogPicker
 	cursor   int      // the focused button or option
+	scroll   int      // the first text line shown, when the text is too long
+	noYN     bool     // y and n do not answer it (its first button is destructive)
 	onChoose func(i int) tea.Cmd
 	onCancel func() tea.Cmd
 }
@@ -38,6 +40,25 @@ func (d *dialog) count() int {
 
 func (m *Model) dialogKey(k string) tea.Cmd {
 	d := m.dialog
+	if m.tooSmall() && k != "esc" && k != "ctrl+c" {
+		return nil // the dialog is not on screen: nothing may answer it blind
+	}
+	if d.kind == dialogHelp {
+		switch k {
+		case "up", "k":
+			d.scroll--
+			return nil
+		case "down", "j":
+			d.scroll++
+			return nil
+		case "pgup":
+			d.scroll -= 5
+			return nil
+		case "pgdown":
+			d.scroll += 5
+			return nil
+		}
+	}
 	switch k {
 	case "esc", "q":
 		m.dialog = nil
@@ -52,11 +73,11 @@ func (m *Model) dialogKey(k string) tea.Cmd {
 	case "enter", "space":
 		return m.chooseDialog(d.cursor)
 	case "y":
-		if d.kind == dialogConfirm {
+		if d.kind == dialogConfirm && !d.noYN {
 			return m.chooseDialog(0)
 		}
 	case "n":
-		if d.kind == dialogConfirm && len(d.buttons) > 1 {
+		if d.kind == dialogConfirm && !d.noYN && len(d.buttons) > 1 {
 			return m.chooseDialog(len(d.buttons) - 1)
 		}
 	}
@@ -101,6 +122,7 @@ func (m *Model) openConflict(name string) {
 		kind: dialogConfirm, title: "Changed on disk",
 		text:    where + " changed since the panel read it. Your edits have not been written.",
 		buttons: []string{"Reload theirs", "Overwrite with mine", "Cancel"},
+		noYN:    true, // y would mean "drop my edits"
 		onChoose: func(i int) tea.Cmd {
 			switch i {
 			case 0:

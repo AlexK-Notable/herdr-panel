@@ -17,6 +17,12 @@ type loadedMsg struct {
 	store string
 	snap  store.Snapshot
 	err   error
+	// gen is the store's save generation when the load started, and
+	// duringSave whether a save was then in flight: a load that may have
+	// read the file before a save wrote it must not replace that save's
+	// snapshot.
+	gen        int
+	duringSave bool
 }
 
 type savedMsg struct {
@@ -24,12 +30,37 @@ type savedMsg struct {
 	snap    store.Snapshot
 	err     error
 	changes map[string]store.Change
-	then    func() tea.Cmd // what to do after a successful save (close)
+	after   *afterSave
 }
 
 type appliedMsg struct {
 	store string
 	res   run.Result
+	after *afterSave
+}
+
+// afterSave is something to do (close the panel) once every store of one
+// save request is saved and applied. Any failure cancels it, so the panel
+// stays open on the failure; it never closes over "saved, not applied".
+type afterSave struct {
+	remaining int
+	failed    bool
+	then      func() tea.Cmd
+}
+
+// done counts one store as finished.
+func (a *afterSave) done(ok bool) tea.Cmd {
+	if a == nil {
+		return nil
+	}
+	a.remaining--
+	if !ok {
+		a.failed = true
+	}
+	if a.remaining == 0 && !a.failed {
+		return a.then()
+	}
+	return nil
 }
 
 func (m *Model) loadStore(name string) tea.Cmd {
@@ -37,10 +68,10 @@ func (m *Model) loadStore(name string) tea.Cmd {
 	if ss == nil || ss.st == nil {
 		return nil
 	}
-	st, ctx := ss.st, m.ctx
+	st, ctx, gen, during := ss.st, m.ctx, ss.saveGen, ss.saving
 	return m.safe(func() tea.Msg {
 		snap, err := st.Load(ctx)
-		return loadedMsg{store: name, snap: snap, err: err}
+		return loadedMsg{store: name, snap: snap, err: err, gen: gen, duringSave: during}
 	})
 }
 
@@ -49,15 +80,23 @@ func (m *Model) onLoaded(msg loadedMsg) tea.Cmd {
 	if ss == nil {
 		return nil
 	}
+	if ss.loaded && (msg.gen != ss.saveGen || msg.duringSave) {
+		return nil // older than a save: the save's snapshot is newer
+	}
+	first := !ss.loaded
 	ss.loaded, ss.loadErr = true, msg.err
-	if msg.err == nil {
-		ss.snap = msg.snap
-		// An edit that now matches the file is no longer an edit.
-		for k, c := range ss.edits {
-			if v, ok := ss.snap.Values[k]; (c.Unset && !ok) || (!c.Unset && ok && v == c.Value) {
-				delete(ss.edits, k)
-			}
+	if msg.err != nil {
+		return nil
+	}
+	ss.snap = msg.snap
+	// An edit that now matches the file is no longer an edit.
+	for k, c := range ss.edits {
+		if v, ok := ss.snap.Values[k]; (c.Unset && !ok) || (!c.Unset && ok && v == c.Value) {
+			delete(ss.edits, k)
 		}
+	}
+	if first && m.spec.Save == spec.Live && len(ss.edits) > 0 {
+		return m.saveStore(msg.store, nil) // edits made while it loaded
 	}
 	return nil
 }
@@ -109,7 +148,8 @@ func (m *Model) setField(f *spec.Field, v string, unset bool) tea.Cmd {
 	return nil
 }
 
-// save writes every store with edits.
+// save writes every store with edits. then, if set, runs once all of them
+// are saved and applied; any failure cancels it.
 func (m *Model) save(then func() tea.Cmd) tea.Cmd {
 	var cmds []tea.Cmd
 	names := make([]string, 0, len(m.stores))
@@ -126,19 +166,27 @@ func (m *Model) save(then func() tea.Cmd) tea.Cmd {
 		}
 		return nil
 	}
-	for i, name := range names {
-		var after func() tea.Cmd
-		if i == len(names)-1 {
-			after = then
+	var after *afterSave
+	if then != nil {
+		after = &afterSave{remaining: len(names), then: then}
+	}
+	for _, name := range names {
+		cmd := m.saveStore(name, after)
+		if cmd == nil {
+			after.done(false) // it could not start; the status says why
 		}
-		cmds = append(cmds, m.saveStore(name, after))
+		cmds = append(cmds, cmd)
 	}
 	return tea.Batch(cmds...)
 }
 
-func (m *Model) saveStore(name string, then func() tea.Cmd) tea.Cmd {
+func (m *Model) saveStore(name string, after *afterSave) tea.Cmd {
 	ss := m.stores[name]
-	if ss == nil || len(ss.edits) == 0 || ss.saving {
+	if ss == nil || len(ss.edits) == 0 {
+		return nil
+	}
+	if ss.saving {
+		m.setStatus(statusInfo, "still saving %s; try again in a moment", name)
 		return nil
 	}
 	if ss.st == nil || (ss.loadErr != nil && !errors.Is(ss.loadErr, os.ErrNotExist)) {
@@ -150,13 +198,14 @@ func (m *Model) saveStore(name string, then func() tea.Cmd) tea.Cmd {
 		return nil
 	}
 	ss.saving = true
+	ss.saveGen++
 	changes := make(map[string]store.Change, len(ss.edits))
 	maps.Copy(changes, ss.edits)
 	st, ctx, base := ss.st, m.ctx, ss.snap
 	m.setStatus(statusInfo, "saving…")
 	return m.safe(func() tea.Msg {
 		snap, err := st.Save(ctx, base, changes)
-		return savedMsg{store: name, snap: snap, err: err, changes: changes, then: then}
+		return savedMsg{store: name, snap: snap, err: err, changes: changes, after: after}
 	})
 }
 
@@ -169,10 +218,10 @@ func (m *Model) onSaved(msg savedMsg) tea.Cmd {
 	switch {
 	case errors.Is(msg.err, store.ErrConflict):
 		m.openConflict(msg.store)
-		return nil
+		return msg.after.done(false)
 	case msg.err != nil:
 		m.setStatus(statusErr, "save failed: %v", msg.err)
-		return nil
+		return msg.after.done(false)
 	}
 	ss.snap, ss.loaded, ss.loadErr = msg.snap, true, nil
 	for k, c := range msg.changes {
@@ -182,29 +231,32 @@ func (m *Model) onSaved(msg savedMsg) tea.Cmd {
 	}
 	var cmds []tea.Cmd
 	if ss.def.Apply != nil {
-		cmds = append(cmds, m.apply(msg.store))
+		// The close, if any, waits for the apply: closing first would
+		// cancel it before it ran.
+		cmds = append(cmds, m.apply(msg.store, msg.after))
 	} else {
 		ss.applyErr = ""
 		m.setStatus(statusOK, "✓ saved")
+		cmds = append(cmds, msg.after.done(true))
 	}
-	if msg.then != nil {
-		cmds = append(cmds, msg.then())
+	if m.spec.Save == spec.Live && len(ss.edits) > 0 {
+		cmds = append(cmds, m.saveStore(msg.store, nil)) // edited again while saving
 	}
 	return tea.Batch(cmds...)
 }
 
-func (m *Model) apply(name string) tea.Cmd {
+func (m *Model) apply(name string, after *afterSave) tea.Cmd {
 	ss := m.stores[name]
 	argv, err := spec.ExpandArgv(ss.def.Apply.Argv, m.values(nil), m.spec.Dir)
 	if err != nil {
 		ss.applyErr = err.Error()
 		m.setStatus(statusErr, "✗ saved, not applied: %v", err)
-		return nil
+		return after.done(false)
 	}
 	m.setStatus(statusInfo, "saved; applying…")
 	req := run.Request{Argv: argv, Env: m.commandEnv(nil), Dir: m.spec.Dir, Timeout: ss.def.Apply.Timeout}
 	r, ctx := m.runner, m.ctx
-	return m.safe(func() tea.Msg { return appliedMsg{store: name, res: r.Run(ctx, req)} })
+	return m.safe(func() tea.Msg { return appliedMsg{store: name, res: r.Run(ctx, req), after: after} })
 }
 
 func (m *Model) onApplied(msg appliedMsg) tea.Cmd {
@@ -215,11 +267,11 @@ func (m *Model) onApplied(msg appliedMsg) tea.Cmd {
 	if !msg.res.OK {
 		ss.applyErr = msg.res.Message
 		m.setStatus(statusErr, "✗ saved, not applied: %s", msg.res.Message)
-		return nil
+		return msg.after.done(false)
 	}
 	ss.applyErr = ""
 	m.setStatus(statusOK, "✓ saved and applied")
-	return nil
+	return msg.after.done(true)
 }
 
 // revert drops every unsaved edit.

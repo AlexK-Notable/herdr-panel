@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -148,4 +149,30 @@ func TestShortcutWithoutSelectionExplains(t *testing.T) {
 	f := open(t, listSpec, "", rowsStub(`[]`))
 	f.key("o")
 	f.expectFrame("Open: no row selected", "nothing here")
+}
+
+func TestPollingFollowsTheDriverClock(t *testing.T) {
+	t.Parallel()
+	src := strings.Replace(listSpec, `source = ["rows"]`, `source = { run = ["rows"], every_s = 5 }`, 1)
+	f := open(t, src, "", rowsStub(`[{"id":"a","name":"Alpha"}]`))
+	polls := func() int {
+		n := 0
+		for _, c := range f.sb.Calls() {
+			if c.Argv[0] == "rows" {
+				n++
+			}
+		}
+		return n
+	}
+	if polls() != 1 {
+		t.Fatalf("%d polls at start, want 1", polls())
+	}
+	f.d.Advance(4 * time.Second)
+	if polls() != 1 {
+		t.Fatalf("polled before 5 s: %d", polls())
+	}
+	f.d.Advance(11 * time.Second) // due at 5, 10 and 15 s
+	if polls() != 4 {
+		t.Fatalf("%d polls after 15 s, want 4", polls())
+	}
 }

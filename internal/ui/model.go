@@ -7,9 +7,12 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/AlexK-Notable/herdr-panel/internal/run"
 	"github.com/AlexK-Notable/herdr-panel/internal/store"
@@ -19,13 +22,14 @@ import (
 // Options configure a Model.
 type Options struct {
 	Spec    *spec.Spec
-	LoadErr error             // the spec failed to load; the panel shows why
+	LoadErr error             // the panel cannot start (a bad spec, a missing view); it shows why
 	Context map[string]string // {ctx.*} values
 	Via     string            // PANEL_VIA for commands
 	Runner  run.Runner        // nil runs commands for real
 	Theme   *Theme            // nil for DefaultTheme
-	// NoTimers turns off polling. observe drives refreshes itself, and a
-	// frame then depends only on the input it was given.
+	// NoTimers parks every timer, the panel's polling and a view's
+	// TickRequest alike, on a clock that moves only when an Advance message
+	// says so: a frame then depends only on the input it was given.
 	NoTimers bool
 	// Stores overrides the store built for each spec store, by name.
 	Stores map[string]store.Store
@@ -56,17 +60,19 @@ type storeState struct {
 	loadErr  error
 	edits    map[string]store.Change
 	saving   bool
+	saveGen  int    // counts saves started; a load older than one is dropped
 	applyErr string // saved, but its apply command failed
 }
 
 // Model is the panel. It is used through a pointer.
 type Model struct {
-	opts   Options
-	spec   *spec.Spec
-	theme  Theme
-	runner run.Runner
-	ctx    context.Context //nolint:containedctx // cancelled on quit: kills running commands
-	cancel context.CancelFunc
+	opts    Options
+	spec    *spec.Spec
+	theme   Theme
+	runner  run.Runner
+	running *atomic.Int64   // commands in flight
+	ctx     context.Context //nolint:containedctx // cancelled on quit: kills running commands
+	cancel  context.CancelFunc
 
 	stores map[string]*storeState
 	lists  map[int]*listState
@@ -74,7 +80,11 @@ type Model struct {
 	busy   map[string]bool // action element ids running now
 
 	width, height int
+	clock         time.Duration // the parked clock (NoTimers)
+	parked        []parkedTick
+	tickSeq       int
 	scroll        int
+	freeScroll    bool // the user scrolled the body: do not pull it back to the focus
 	focus         string
 	editing       *fieldEdit
 	filterActive  bool // keys go to the focused list's filter
@@ -100,17 +110,19 @@ func New(opts Options) *Model {
 	if opts.Theme != nil {
 		th = *opts.Theme
 	}
-	r := opts.Runner
-	if r == nil {
-		r = run.Exec{}
+	var r run.Runner = run.Exec{}
+	if opts.Runner != nil {
+		r = opts.Runner
 	}
+	running := &atomic.Int64{}
+	r = counted{r: r, n: running}
 	parent := opts.Parent
 	if parent == nil {
 		parent = context.Background()
 	}
 	ctx, cancel := context.WithCancel(parent)
 	m := &Model{
-		opts: opts, spec: opts.Spec, theme: th, runner: r, ctx: ctx, cancel: cancel,
+		opts: opts, spec: opts.Spec, theme: th, runner: r, running: running, ctx: ctx, cancel: cancel,
 		stores: map[string]*storeState{}, lists: map[int]*listState{}, texts: map[int]*textState{},
 		busy: map[string]bool{},
 	}
@@ -167,6 +179,7 @@ func (m *Model) Init() (cmd tea.Cmd) {
 	for i := range m.texts {
 		cmds = append(cmds, m.refreshText(i))
 	}
+	cmds = append(cmds, m.viewFocusChange("")) // a view focused from the start is told
 	return tea.Batch(cmds...)
 }
 
@@ -210,7 +223,10 @@ func (m *Model) Crashed() bool { return m.crash != nil }
 func (m *Model) Focused() string { return m.focus }
 
 func (m *Model) setStatus(kind int, format string, args ...any) {
-	m.status = status{text: fmt.Sprintf(format, args...), kind: kind}
+	// Messages come from commands: no escape sequence or line break of
+	// theirs reaches the terminal.
+	text := strings.Join(strings.Fields(ansi.Strip(fmt.Sprintf(format, args...))), " ")
+	m.status = status{text: text, kind: kind}
 }
 
 // crashLogPath is where a crash is written.
@@ -220,4 +236,30 @@ func (m *Model) crashLogPath() string {
 		dir = filepath.Join(tempDir(), "herdr-panel")
 	}
 	return filepath.Join(dir, "crash-"+time.Now().Format("20060102-150405")+".log")
+}
+
+// counted counts the commands in flight, for WaitCommands.
+type counted struct {
+	r run.Runner
+	n *atomic.Int64
+}
+
+func (c counted) Run(ctx context.Context, req run.Request) run.Result {
+	c.n.Add(1)
+	defer c.n.Add(-1)
+	return c.r.Run(ctx, req)
+}
+
+// WaitCommands waits up to d for every command in flight to end, and
+// reports whether they did. After Quit they are being killed: a process
+// that exits before the kill is sent leaves them running.
+func (m *Model) WaitCommands(d time.Duration) bool {
+	deadline := time.Now().Add(d)
+	for m.running.Load() > 0 {
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	return true
 }
