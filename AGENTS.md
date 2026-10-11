@@ -40,8 +40,12 @@ terminal without it.
 
 1. **Never touch a live herdr session.** Anything that starts, drives or
    stops herdr runs isolated: `XDG_CONFIG_HOME=<repo>/spike/xdg` (or a
-   test's own directory) **and every `HERDR_*` variable removed** — a
-   leftover `HERDR_SOCKET_PATH` reaches the user's real session. Use
+   test's own directory), **`XDG_STATE_HOME`, `XDG_DATA_HOME` and
+   `XDG_CACHE_HOME` too**, and **every `HERDR_*` variable removed**. A
+   leftover `HERDR_SOCKET_PATH` reaches the user's real session, and herdr
+   puts plugin state directories under `XDG_STATE_HOME`, so isolating only
+   the config directory once leaked the spike's plugin state into the live
+   `~/.local/state/herdr`. Use
    `spike/harness.py`'s `isolated_env()`, `cli()`, `api()` and
    `stop_server()` — the last refuses unless `herdr status` reports the
    isolated socket. Any new teardown must do the same check.

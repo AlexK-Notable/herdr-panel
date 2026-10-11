@@ -26,9 +26,16 @@ COLS, ROWS = 120, 36
 KITTY_KEYS = __import__("re").compile(rb"\x1b\[[<>=?][0-9;:]*u")
 
 
+# herdr resolves config, plugins and the socket under XDG_CONFIG_HOME but plugin
+# state directories under XDG_STATE_HOME; isolating only the first leaked the
+# spike's plugin state into the live ~/.local/state/herdr. Isolate all four.
+XDG_DIRS = {name: os.path.join(SPIKE, "xdg-" + kind) for name, kind in
+            [("XDG_STATE_HOME", "state"), ("XDG_DATA_HOME", "data"), ("XDG_CACHE_HOME", "cache")]}
+
+
 def isolated_env():
     env = {k: v for k, v in os.environ.items() if not k.startswith("HERDR_")}
-    env.update(XDG_CONFIG_HOME=XDG, TERM="xterm-256color", COLORTERM="truecolor")
+    env.update(XDG_CONFIG_HOME=XDG, **XDG_DIRS, TERM="xterm-256color", COLORTERM="truecolor")
     return env
 
 
