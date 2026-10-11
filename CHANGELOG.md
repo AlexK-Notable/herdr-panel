@@ -6,6 +6,8 @@ may break the spec or the Go API, and every such break is listed under
 
 ## Unreleased
 
+## v0.2.0 — 2026-10-11
+
 - A section can follow the row selected in a list: a list may have an `id`,
   and `{sel.<id>.<key>}` reads its selected row in sources, actions, confirm
   questions and section titles. A following section re-runs its source when
