@@ -5,8 +5,9 @@ a spec file: a Go host binary, a Go library under it, and a herdr adapter
 layer that the rest does not depend on. Read [`README.md`](./README.md)
 first — it holds the design. This file holds the rules for working here.
 
-**Status:** design and spike. Only `spike/` exists. The library has not
-been started; when it is, update the layout below in the same change.
+**Status:** under construction, following [`docs/PLAN.md`](./docs/PLAN.md)
+milestone by milestone. Update the layout below in the same change as the
+code it describes.
 
 ## Repository layout
 
@@ -23,10 +24,20 @@ spike/              the experiment that established what a popup can rely on
   xdg/herdr/        the isolated herdr config; everything else in it is ignored
 ```
 
-Planned, per the README's layer table: `cmd/herdr-panel`, then packages
-`core`, `widgets`, `spec`, `stores`, `runner`, `herdr`, `observe`. Only
-`herdr` may import herdr-specific code; the panel must run in any
-terminal without it.
+Library (module `github.com/AlexK-Notable/herdr-panel`, `go 1.26.0`):
+
+```
+cmd/herdr-panel/    the CLI
+panel/ spec/ herdr/ paneltest/    the public API
+internal/           ui, widget, store, run, source, observe, atomicfile
+tools/              its own module: golangci-lint, gorelease, govulncheck
+scripts/            check-third-party (README table vs compiled modules)
+docs/               PLAN.md, and the user docs
+```
+
+Only `herdr` may import herdr-specific code; the panel must run in any
+terminal without it. Only `internal/run` may import `os/exec` (depguard and
+forbidigo enforce it).
 
 ## Decisions already made — do not reopen
 
@@ -141,5 +152,7 @@ cd spike/go && go run .               # hit-testing check
 cd spike && python3 -c 'import harness; print(harness.stop_server())'   # isolated server only
 ```
 
-Go code: `gofmt` and `go vet` clean; tests beside the code. Commit
+`make check` is the gate (format, vet, lint for linux and darwin, race
+tests, the third-party table); commit only when it exits 0. Tests sit
+beside the code. Commit
 messages say what changed and why, in the imperative.

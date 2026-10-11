@@ -500,3 +500,20 @@ config.
 6. Both `[[build]]` forms install from the `v0.1.0` tag into an isolated herdr, and the popup
    opens by keybinding.
 7. The auto-title panel works in the live session (M6), and the user confirms it.
+
+## Adaptations made during the build
+
+Each entry says what changed from the plan above, and why.
+
+- **M0, lint set.** auto-title's `.golangci.yml` also enables layout rules (`wsl_v5`,
+  `funlen`, `mnd`, `godot` and others). herdr-panel keeps the rules that guard its safety
+  rules and correctness:
+  - `depguard` (an import allowlist; `os/exec` only in `internal/run`; godotenv only in
+    tests);
+  - `forbidigo`, `gosec`, `errorlint`, `errcheck`, `nolintlint`, `gocritic`, `exhaustive`,
+    `modernize` and the standard set.
+
+  The pure layout rules are left out. The `os/exec` rule was checked with a negative
+  control: a temporary import in `cmd/` failed both `depguard` and `forbidigo`.
+- **M0, the `integration/` module** is created in M5 with its first test, not as an empty
+  module now.

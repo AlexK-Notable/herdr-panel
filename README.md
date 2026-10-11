@@ -3,9 +3,9 @@
 Spec-driven popup panels for [herdr](https://herdr.dev) plugins — and for
 any terminal.
 
-> **Status: design and spike.** The library is not written yet. This
-> repository holds the design summarised below and the spike in `spike/`
-> that established, on a real herdr, what a popup panel can rely on.
+> **Status: under construction (v0).** The build follows
+> [`docs/PLAN.md`](./docs/PLAN.md); `spike/` holds the experiments that
+> established, on a real herdr, what a popup panel can rely on.
 
 ## Why
 
@@ -83,17 +83,19 @@ The spec format is a sketch. It freezes at version 1 only once it serves
 two real plugins — one of ours and one written by someone else — without
 special cases.
 
-## How it will work
+## How it works
 
-| Layer | What it does |
+| Package | What it does |
 |---|---|
-| `core` | Layout, focus, keymap, theme roles, the error screen. Built on [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) and [Lip Gloss v2](https://github.com/charmbracelet/lipgloss); clicks are hit-tested by Lip Gloss's compositor, so the same layer tree draws the panel and answers the mouse. |
-| `widgets` | Toggle, choice, number and duration with bounds, validated text, secret status, list with row actions, button, text and log view, in-panel confirm dialog, status line. |
-| `spec` | The versioned schema, its validator, a JSON Schema export for editors and agents, and placeholders such as `{row.id}` and `{ctx.workspace_id}`. |
-| `stores` | Where values live: env files (comments and order kept), JSON (key order kept), TOML (existing keys only). Never herdr's own `config.toml`. |
-| `runner` | Runs source and action commands: no shell, a timeout, an output cap, stderr shown, values passed as `PANEL_FIELD_*` and `PANEL_ROW_*` environment variables as well as arguments. |
-| `herdr` | The herdr adapter: reads the popup's context, opens panels over the socket, turns `ui_busy` into a notification, subscribes to events for live lists. The panel itself runs in any terminal without it. |
-| `observe` | Renders a panel headlessly and prints the frame plus every clickable element, taken from the same layer tree that drew it, so an agent or a test can drive a panel by element id without a real mouse. |
+| `panel` | The entry point: turns a spec into a running panel (`panel.Run`), with an experimental `View` interface for custom sections. |
+| `spec` | The versioned schema, its decoder and validator (errors carry `file:line:col`), placeholders such as `{row.id}` and `{ctx.workspace_id}`, and a JSON Schema for editors and agents. |
+| `herdr` | The herdr adapter: reads a popup's context, opens panels over the socket, sends notifications. The panel itself runs in any terminal without it. |
+| `paneltest` | Drives a panel in tests by element id and compares golden frames. |
+| `internal/…` | The UI core (layout, focus, keymap, theme roles, error screens) on [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) and [Lip Gloss v2](https://github.com/charmbracelet/lipgloss), whose compositor both draws the panel and answers the mouse; widgets; the env-file store and atomic writes; the command runner; `observe`. |
+
+`herdr-panel observe` renders a panel headlessly and prints the frame plus
+every clickable element, taken from the same layer tree that drew it, so an
+agent or a test can drive a panel by element id without a real mouse.
 
 ### Rules the host enforces
 
@@ -186,14 +188,14 @@ copyright notice. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) to contribute.
 
 ### Third-party software
 
-| Component | License | How it is used |
-|---|---|---|
-| Bubble Tea v2, Lip Gloss v2, ultraviolet and the `charmbracelet/x` packages (Charmbracelet, Inc.) | MIT | Go dependencies |
-| `rivo/uniseg`, `mattn/go-runewidth`, `clipperhouse/uax29`, `clipperhouse/displaywidth`, `lucasb-eyer/go-colorful`, `xo/terminfo`, `muesli/cancelreader` | MIT | Go dependencies |
-| `golang.org/x/sys`, `golang.org/x/sync` (The Go Authors) | BSD-3-Clause, with Google's Go patent grant | Go dependencies |
-| [herdr](https://github.com/herdrdev/herdr) | Apache-2.0 | Not included. herdr-panel talks to a running herdr through its CLI and socket API. |
-| [pyte](https://github.com/selectel/pyte) | LGPL-3.0 | Spike tooling only (`spike/harness.py` imports an installed copy); not included and not used by the library. |
+Every module the library or its tests compile against has a row here;
+`make licenses` fails when the two disagree.
 
-The Go dependency list comes from GitHub's dependency-graph SBOM (SPDX
-2.3), with each license checked against the module's own `LICENSE` file.
-Binary releases will ship the dependencies' license texts.
+| Module | License | Where |
+|---|---|---|
+| [herdr](https://github.com/herdrdev/herdr) | Apache-2.0 | not included: herdr-panel talks to a running herdr through its CLI and socket API |
+| [pyte](https://github.com/selectel/pyte) | LGPL-3.0 | spike tooling only (`spike/harness.py` imports an installed copy); not included |
+
+Each license is checked against the module's own `LICENSE` file. herdr-panel
+is distributed as source only; Go's module cache keeps every dependency's
+license text beside its code.

@@ -1,0 +1,128 @@
+version: "2"
+
+run:
+  tests: true
+  timeout: 10m
+
+linters:
+  default: standard
+  enable:
+    - asciicheck      # an identifier spelled with a rune that only looks Latin
+    - bidichk         # bidirectional runes that make source read as it is not
+    - bodyclose       # an HTTP body left open
+    - contextcheck    # a function that drops the context it was handed
+    - copyloopvar     # loop-variable copies made redundant by Go 1.22
+    - depguard        # the import rules below
+    - durationcheck   # a duration multiplied by a duration
+    - errchkjson      # a json.Marshal error that can happen, dropped
+    - errname         # error values and types named the way Go names them
+    - errorlint       # errors compared with == and formatted with %v
+    - exhaustive      # a switch over a closed set that forgets a member
+    - forbidigo       # the calls named below
+    - forcetypeassert # a type assertion that panics instead of reporting
+    - gocheckcompilerdirectives
+    - gochecknoinits  # an init() doing work nobody can see the call to
+    - gocritic
+    - gosec
+    - misspell
+    - modernize
+    - nilerr
+    - nilnesserr
+    - noctx
+    - nolintlint      # a //nolint must name its linter and say why
+    - perfsprint
+    - predeclared
+    - reassign
+    - thelper
+    - unconvert
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+
+  settings:
+    errcheck:
+      # A CLI that cannot write its help or result to the terminal has no one
+      # left to report that to.
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+    depguard:
+      rules:
+        # A consumer builds this module at install time: every import outside
+        # the standard library is a decision, listed here and in the README's
+        # third-party table.
+        main:
+          list-mode: strict
+          files:
+            - $all
+          allow:
+            - $gostd
+            - github.com/AlexK-Notable/herdr-panel
+            - charm.land/bubbletea/v2
+            - charm.land/lipgloss/v2
+            - charm.land/bubbles/v2
+            - github.com/charmbracelet/x/ansi
+            - github.com/charmbracelet/x/term
+            - github.com/charmbracelet/x/exp/golden
+            - github.com/pelletier/go-toml/v2
+            - github.com/joho/godotenv
+            - golang.org/x/sys/unix
+        # Commands run in one package, so its guarantees (no shell, timeout,
+        # output cap, process group) cannot be bypassed by accident.
+        exec:
+          files:
+            - $all
+            - "!**/internal/run/**"
+          deny:
+            - pkg: os/exec
+              desc: run commands through internal/run
+        # godotenv is the env-file store's test oracle, never its writer: it
+        # rewrites files and drops comments.
+        godotenv:
+          files:
+            - "!$test"
+          deny:
+            - pkg: github.com/joho/godotenv
+              desc: test oracle only; the env-file store is hand-written
+    exhaustive:
+      default-signifies-exhaustive: true
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^exec\.Command(Context)?$
+          msg: run commands through internal/run
+    gosec:
+      excludes:
+        # G204 flags every exec with a variable argv; internal/run exists to
+        # run spec-supplied argv without a shell, and is tested for it.
+        - G204
+
+  exclusions:
+    # The spike holds its own modules and is throwaway evidence, not library code.
+    paths:
+      - spike/
+    rules:
+      - path: internal/run/
+        linters:
+          - forbidigo
+        text: exec\.Command
+      # A test writes fixtures into its own temporary directory.
+      - path: _test\.go
+        linters:
+          - gosec
+          - noctx
+
+formatters:
+  exclusions:
+    paths:
+      - spike/
+  enable:
+    - gofumpt
+    - gci
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/AlexK-Notable/herdr-panel)
