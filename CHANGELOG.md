@@ -6,6 +6,16 @@ may break the spec or the Go API, and every such break is listed under
 
 ## Unreleased
 
+## v0.2.1 — 2026-10-11
+
+- In a plugin's herdr popup the panel no longer shows its title twice: herdr's
+  frame already shows the pane's title, so the panel leaves out its own title
+  row, and the unsaved count moves to the footer beside the buttons. Panels
+  anywhere else keep their title row.
+- A text section with nothing to show takes no room. An untitled text whose
+  source printed nothing, or has not answered yet, used to leave a blank band
+  (under the title, when it came first).
+
 ## v0.2.0 — 2026-10-11
 
 - A section can follow the row selected in a list: a list may have an `id`,
