@@ -86,6 +86,52 @@ func TestPluginManager(t *testing.T) {
 	if err := herdr.NewClient(w.socket).ClosePopup(ctx); err != nil {
 		t.Fatal(err)
 	}
+	w.waitFor("the target popup to close", func() bool { return !strings.Contains(w.screen(), "TARGET POPUP OPEN") })
+
+	// Uninstall: the manager refuses for itself; a linked plugin is
+	// forgotten by herdr, and its folder stays.
+	w.cli("plugin", "action", "invoke", "open", "--plugin", "komi.plugin-manager")
+	clickText(w, "Plugin Manager")
+	w.send("u")
+	w.waitText("Uninstall Plugin Manager?")
+	w.send("y")
+	w.waitText("will not uninstall itself")
+	if !listed(t, w, "komi.plugin-manager") {
+		t.Fatal("the manager uninstalled itself")
+	}
+	clickText(w, "Popup target")
+	w.send("u")
+	w.waitText("Uninstall Popup target?")
+	w.send("y")
+	w.waitFor("the target uninstalled", func() bool { return !listed(t, w, "herdr-panel-test.popup-target") })
+	w.waitFor("the list to drop it", func() bool { return !strings.Contains(w.screen(), "Popup target") })
+	if _, err := os.Stat(filepath.Join(target, "herdr-plugin.toml")); err != nil {
+		t.Fatalf("uninstalling a linked plugin touched its folder: %v", err)
+	}
+	if err := herdr.NewClient(w.socket).ClosePopup(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// listed reports whether herdr lists the plugin.
+func listed(t *testing.T, w *world, id string) bool {
+	t.Helper()
+	var list struct {
+		Result struct {
+			Plugins []struct {
+				ID string `json:"plugin_id"`
+			} `json:"plugins"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(w.cli("plugin", "list", "--json")), &list); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range list.Result.Plugins {
+		if p.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func clickText(w *world, s string) {

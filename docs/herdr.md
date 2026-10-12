@@ -181,7 +181,9 @@ It links the manager and a scratch plugin (`integration/testdata/plugins/popup-t
 whose action the isolated config binds to a key. Then it clicks a plugin and
 waits for the keys that follow the selection. It disables and enables the
 plugin, checking herdr's own state each time, and checks that the manager
-refuses to disable itself. Last, it presses Run on the scratch plugin's popup
+refuses to disable itself. Then it presses Run on the scratch plugin's popup
 pane. The manager closes, and the scratch popup opens:
 `after = "close_then_run"`, end to end. With a plain action instead, herdr
-refuses the second popup, and the test fails.
+refuses the second popup, and the test fails. Last, it uninstalls the
+scratch plugin: herdr stops listing it, and its linked folder is still
+there. The manager refuses to uninstall itself.
