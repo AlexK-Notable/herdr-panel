@@ -61,22 +61,24 @@ func TestAutoTitleSettingsPanel(t *testing.T) {
 	w.cli("plugin", "link", dir)
 	w.cli("plugin", "action", "invoke", "open-settings", "--plugin", "herdr.auto-title")
 	w.waitText("Auto Title")
-	w.waitText("Debug logging")
+	// A field near the top, so it is on screen in the smallest popup and in
+	// every layout the panel has had.
+	w.waitText("Show pane ids")
 	// The two settings this test sets in herdr's environment win over the
 	// file, and the panel says so.
 	w.waitText("HERDR_AUTO_TITLE_AGENTS,")
 	w.waitText("HERDR_AUTO_TITLE_NAME_WORKSPACES")
 
-	x, y, ok := w.find("Debug logging")
+	x, y, ok := w.find("Show pane ids")
 	if !ok {
-		t.Fatalf("no Debug logging field:\n%s", w.screen())
+		t.Fatalf("no Show pane ids field:\n%s", w.screen())
 	}
 	w.click(x, y)
 	w.send("\x13") // ctrl+s
 	config := filepath.Join(w.root, "config", "herdr-auto-title", "config.env")
 	w.waitFor("the setting in "+config, func() bool {
 		data, _ := os.ReadFile(config)
-		return strings.Contains(string(data), "HERDR_AUTO_TITLE_DEBUG=true")
+		return strings.Contains(string(data), "HERDR_AUTO_TITLE_PANE_ID=true")
 	})
 	// Applying restarts the plugin; the old instance takes up to 15 s to go.
 	deadline := time.Now().Add(40 * time.Second)
