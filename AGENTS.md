@@ -156,3 +156,11 @@ cd spike && python3 -c 'import harness; print(harness.stop_server())'   # isolat
 tests, the third-party table); commit only when it exits 0. Tests sit
 beside the code. Commit
 messages say what changed and why, in the imperative.
+
+`main` is protected: force-pushes and deleting it are refused, and a pull
+request merges only when every CI job passes (an admin may still push
+directly). The required checks are the CI job names. Renaming or adding a
+job means updating the protection's list (`gh api
+repos/AlexK-Notable/herdr-panel/branches/main/protection`), or pull requests
+wait on a check that never reports. A history rewrite, like the one before
+publishing, now needs the protection lifted first.
