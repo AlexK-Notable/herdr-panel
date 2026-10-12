@@ -223,16 +223,25 @@ func (m *Model) isSelectedRow(id string) bool {
 	return sec == ls.idx && j == ls.sel
 }
 
-func (m *Model) headerLines(w int) []line {
-	th := m.theme
-	title := th.Title.Render(m.spec.Title)
-	var right string
+// saveState says whether there are unsaved edits, or that there never are.
+func (m *Model) saveState() string {
 	switch n := m.Dirty(); {
 	case n > 0:
-		right = th.Dirty.Render(fmt.Sprintf("● %d unsaved", n))
+		return m.theme.Dirty.Render(fmt.Sprintf("● %d unsaved", n))
 	case m.spec.Save == spec.Live:
-		right = th.Muted.Render("saves as you edit")
+		return m.theme.Muted.Render("saves as you edit")
 	}
+	return ""
+}
+
+func (m *Model) headerLines(w int) []line {
+	if m.opts.Framed {
+		// herdr's frame names the panel; the save state goes to the footer.
+		return nil
+	}
+	th := m.theme
+	title := th.Title.Render(m.spec.Title)
+	right := m.saveState()
 	gap := max(1, w-1-lipgloss.Width(title)-lipgloss.Width(right))
 	return []line{
 		{plain(" "), plain(title), plain(strings.Repeat(" ", gap)), plain(right)},
@@ -271,6 +280,9 @@ func (m *Model) footerLines(w int) []line {
 		add("revert", "Revert")
 	}
 	add("close", "Close esc")
+	if st := m.saveState(); st != "" && m.opts.Framed {
+		buttons = append(buttons, plain(" "+st))
+	}
 	used := 0
 	for _, s := range buttons {
 		used += lipgloss.Width(s.text)
@@ -302,30 +314,37 @@ func (m *Model) bodyLines(w int) []line {
 	}
 	labelW = max(8, min(labelW, w*2/5))
 	for i, sec := range m.spec.Sections {
-		if i > 0 {
-			out = append(out, nil)
-		}
+		var block []line
 		if sec.Title != "" {
-			out = append(out, line{plain(" " + m.theme.Section.Render(sec.ExpandTitle(m.values(nil))))})
+			block = append(block, line{plain(" " + m.theme.Section.Render(sec.ExpandTitle(m.values(nil))))})
 		}
 		switch sec.Kind {
 		case spec.FieldsSection:
 			for _, f := range sec.Fields {
-				out = append(out, m.fieldLines(f, labelW, w)...)
+				block = append(block, m.fieldLines(f, labelW, w)...)
 			}
 		case spec.ListSection:
-			out = append(out, m.listLines(i, w)...)
+			block = append(block, m.listLines(i, w)...)
 		case spec.ButtonsSection:
 			var segs []seg
 			for j, a := range sec.Buttons {
 				segs = append(segs, m.actionSeg(actionID("button", i, j), a))
 			}
-			out = append(out, wrapSegs(segs, w)...)
+			block = append(block, wrapSegs(segs, w)...)
 		case spec.TextSection:
-			out = append(out, m.textLines(i, sec, w)...)
+			block = append(block, m.textLines(i, sec, w)...)
 		case spec.ViewSection:
-			out = append(out, m.viewLines(sec, w)...)
+			block = append(block, m.viewLines(sec, w)...)
 		}
+		// A section with nothing to show takes no room, not even the blank
+		// line that separates sections: an untitled text with no text, say.
+		if len(block) == 0 {
+			continue
+		}
+		if len(out) > 0 {
+			out = append(out, nil)
+		}
+		out = append(out, block...)
 	}
 	return out
 }
@@ -534,10 +553,17 @@ func (m *Model) textLines(i int, sec *spec.Section, w int) []line {
 		switch {
 		case ts.err != "":
 			return []line{{plain("   " + th.Error.Render("✗ "+ts.err))}}
+		case !ts.loaded && sec.Title == "":
+			// An untitled text often has nothing to say; "loading…" would
+			// flash and vanish on every open.
+			return nil
 		case !ts.loaded:
 			return []line{{plain("   " + th.Muted.Render("loading…"))}}
 		}
 		text = ts.text
+	}
+	if strings.TrimSpace(ansi.Strip(text)) == "" {
+		return nil
 	}
 	// Prose wraps at words: cutting a line would drop its end, which is
 	// often the part that matters.

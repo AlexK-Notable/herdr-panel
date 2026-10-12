@@ -319,3 +319,36 @@ func TestWaitCommandsOutlastsTheKill(t *testing.T) {
 		t.Error("nothing is running, yet WaitCommands timed out")
 	}
 }
+
+// An untitled text shows nothing while its source has not answered; a
+// titled one shows its title and "loading…".
+func TestTextLoadingState(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		title string
+		line3 string // the first line under the header
+		has   string // in the frame
+		not   string // not in the frame
+	}{
+		{"", "General", "General", "loading"},
+		{`title = "Notes"`, "Notes", "loading…", ""},
+	} {
+		src := "spec = 1\ntitle = \"T\"\n[[section]]\n" + c.title + "\nkind = \"text\"\nsource = [\"say\"]\n" +
+			"[[section]]\ntitle = \"General\"\nkind = \"text\"\ntext = \"x\"\n"
+		s, err := spec.Parse([]byte(src), "t.toml", t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := New(Options{Spec: s, Runner: fixedRunner{"late"}, NoTimers: true})
+		m.width, m.height = 60, 12
+		if m.texts[0] == nil || m.texts[0].loaded {
+			t.Fatal("the source has already answered: this checks nothing")
+		}
+		m.View()
+		fr := m.Frame()
+		lines := strings.Split(fr, "\n")
+		if !strings.Contains(lines[2], c.line3) || !strings.Contains(fr, c.has) || (c.not != "" && strings.Contains(fr, c.not)) {
+			t.Errorf("title %q: line 3 = %q, want %q, and %q shown:\n%s", c.title, lines[2], c.line3, c.has, fr)
+		}
+	}
+}

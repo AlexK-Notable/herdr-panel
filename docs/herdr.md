@@ -101,6 +101,13 @@ Go plugin, `go mod init` writes the local toolchain's version; set the
   follow what the program asks for. Bubble Tea v2 pushes the kitty keyboard
   protocol and herdr answers with flags 1 (disambiguation), so Esc, alt,
   ctrl, shift+tab and bracketed paste all decode correctly (slice S).
+- **The frame's title.** herdr draws a border around a popup. For a
+  plugin's popup the border carries the manifest's `[[panes]]` `title`; for a
+  keybinding popup, the word `popup`; a split or tab has none. So in a
+  plugin's popup the panel leaves out its own title row, and the unsaved
+  count moves to the footer. herdr does not say a pane's placement: a popup
+  is told apart by having no `HERDR_PANE_ID`, which every other plugin pane
+  has (`TestFramedTitle`). Give the pane a `title` that names the panel.
 - **The smallest content area** is 4×2; below 24×6 a panel shows a one-line
   "make me bigger" message.
 

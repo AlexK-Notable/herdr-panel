@@ -25,6 +25,12 @@ type fixture struct {
 // file holding initial, and commands answered by stubs.
 func open(t *testing.T, src, initial string, stubs ...observe.Stub) *fixture {
 	t.Helper()
+	return openWith(t, src, initial, nil, stubs...)
+}
+
+// openWith is open with a change to the panel's options.
+func openWith(t *testing.T, src, initial string, set func(*ui.Options), stubs ...observe.Stub) *fixture {
+	t.Helper()
 	dir := t.TempDir()
 	file := filepath.Join(dir, "c.env")
 	if initial != "" {
@@ -37,10 +43,14 @@ func open(t *testing.T, src, initial string, stubs ...observe.Stub) *fixture {
 		t.Fatal(err)
 	}
 	sb := &observe.Sandbox{Stubs: &observe.Stubs{Commands: stubs}}
-	d := observe.New(ui.Options{
+	opts := ui.Options{
 		Spec: s, Runner: sb, CrashDir: dir,
 		Stores: map[string]store.Store{"c": &store.EnvFile{Path: file, Create: true}},
-	}, 80, 30)
+	}
+	if set != nil {
+		set(&opts)
+	}
+	d := observe.New(opts, 80, 30)
 	return &fixture{t: t, d: d, sb: sb, file: file}
 }
 

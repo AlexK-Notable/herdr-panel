@@ -37,7 +37,10 @@ type Options struct {
 	Views map[string]View
 	// CrashDir is where a crash log is written; "" for the temp directory.
 	CrashDir string
-	Parent   context.Context //nolint:containedctx // the panel's lifetime; cancelled on quit
+	// Framed means herdr already shows the panel's title, on the frame it
+	// draws around a plugin's popup: the panel leaves out its own title row.
+	Framed bool
+	Parent context.Context //nolint:containedctx // the panel's lifetime; cancelled on quit
 }
 
 type status struct {

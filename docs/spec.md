@@ -20,7 +20,7 @@ ignored.
 |---|---|---|---|
 | `spec` | integer | required | The format version: `1`. |
 | `requires` | string | none | The oldest herdr-panel that can run this spec, written `">=0.3"`. An older host refuses with that message. |
-| `title` | string | required | Shown in the panel's top line. |
+| `title` | string | required | Shown in the panel's top line. In a plugin's herdr popup, herdr's frame shows the manifest's pane title instead, and the panel leaves this line out (see [docs/herdr.md](herdr.md#popups-what-herdr-does)). |
 | `size` | table | none | `{ width, height }`. Each is a number of cells (`60`) or a percentage of the terminal (`"70%"`). Used when the panel is opened over herdr's socket; a size sent with that request overrides the manifest's `[[panes]]` size. |
 | `save` | string | `"save_then_apply"` | See [Saving](#saving). |
 | `[stores.<name>]` | table | none | See [Stores](#stores). |
@@ -197,6 +197,12 @@ buttons = [ { label = "Restart", key = "R", run = ["./my-plugin", "restart"], co
 command's output, which `every_s` can refresh. Lines wrap at words to the
 panel's width (a word longer than the line is broken), and at most 200 lines
 are shown.
+
+A text section with nothing to show takes no room, not even the gap between
+sections: blank text, or an untitled section whose source has not answered
+yet. So a `source` that prints only when there is something to say
+(overrides, warnings) can sit at the top of a panel. A titled text section
+keeps its title, and shows `loading…` while its source runs.
 
 ### `view` (experimental)
 

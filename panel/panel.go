@@ -131,7 +131,18 @@ func uiOptions(s *spec.Spec, opts Options) (ui.Options, error) {
 	return ui.Options{
 		Spec: s, Context: values, Via: opts.Via, CrashDir: crash,
 		Theme: &ut, Views: adaptViews(opts.Views, theme),
+		Framed: framed(hctx, os.Getenv),
 	}, nil
+}
+
+// framed reports whether herdr shows the panel's title on a frame around it.
+// It does for a plugin's popup, and only for that: a keybinding popup's frame
+// says "popup", and a split or tab has no frame title. herdr 0.9.2 tells a
+// plugin's popup from its other panes only by HERDR_PANE_ID, which a popup
+// lacks (measured; integration's TestFramedTitle). Guessing wrong just shows
+// the panel's own title as well.
+func framed(c herdr.Context, getenv func(string) string) bool {
+	return c.Kind == herdr.PluginPopup && getenv("HERDR_PANE_ID") == ""
 }
 
 func themeOf(opts Options) Theme {
